@@ -1,0 +1,15 @@
+{
+  "name": "io-game",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "install:all": "pnpm install",
+    "dev:server": "pnpm --filter server dev",
+    "dev:client": "pnpm --filter client dev -- --host",
+    "build:client": "pnpm --filter client build",
+    "typecheck": "pnpm --filter shared typecheck && pnpm --filter server typecheck && pnpm --filter client typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

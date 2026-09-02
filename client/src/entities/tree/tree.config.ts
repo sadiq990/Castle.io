@@ -1,0 +1,10 @@
+export const TREE_CONFIG = {
+  TRUNK_WIDTH: 14,
+  TRUNK_HEIGHT: 20,
+  TRUNK_COLOR: '#5d3a1a',
+  CANOPY_RADIUS: 22,
+  CANOPY_COLOR: '#2e7d32',
+  CANOPY_HIGHLIGHT_COLOR: '#43a047',
+  SHADOW_COLOR: 'rgba(0,0,0,0.3)',
+  SHADOW_OFFSET_Y: 4,
+} as const;

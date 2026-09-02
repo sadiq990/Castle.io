@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>.io Game</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: #1a1a2e;
+        overflow: hidden;
+        font-family: 'Segoe UI', Arial, sans-serif;
+      }
+
+      /* ─── CANVAS ─────────────────────────────────── */
+      #game-canvas {
+        display: block;
+        cursor: crosshair;
+      }
+      #ui-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      /* ─── LOGIN SCREEN ──────────────────────────── */
+      #login-screen {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 30, 0.92);
+        backdrop-filter: blur(4px);
+        z-index: 100;
+      }
+
+      #login-screen h1 {
+        color: #fff;
+        font-size: 52px;
+        font-weight: 900;
+        letter-spacing: -1px;
+        margin-bottom: 6px;
+        text-shadow: 0 0 30px rgba(100, 180, 255, 0.5);
+      }
+
+      #login-screen .subtitle {
+        color: rgba(255,255,255,0.45);
+        font-size: 14px;
+        margin-bottom: 36px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      #login-screen input[type="text"] {
+        width: 280px;
+        padding: 14px 20px;
+        font-size: 18px;
+        border: 2px solid rgba(255,255,255,0.2);
+        border-radius: 10px;
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+        outline: none;
+        text-align: center;
+        transition: border-color 0.2s, background 0.2s;
+        margin-bottom: 18px;
+      }
+
+      #login-screen input[type="text"]::placeholder {
+        color: rgba(255,255,255,0.3);
+      }
+
+      #login-screen input[type="text"]:focus {
+        border-color: rgba(100, 180, 255, 0.7);
+        background: rgba(255,255,255,0.12);
+      }
+
+      #login-screen button {
+        width: 280px;
+        padding: 14px;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2196f3, #1565c0);
+        color: #fff;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.2s;
+        box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
+      }
+
+      #login-screen button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 28px rgba(33, 150, 243, 0.6);
+      }
+
+      #login-screen button:active {
+        transform: translateY(0);
+      }
+
+      #login-screen .hint {
+        margin-top: 14px;
+        color: rgba(255,255,255,0.25);
+        font-size: 12px;
+      }
+
+      /* ─── CONNECTION STATUS ─────────────────────── */
+      #connection-status {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 13px;
+        font-weight: bold;
+        color: #fff;
+        background: #333;
+        transition: background 0.3s;
+        z-index: 1000;
+      }
+      #connection-status.connected { background: #2e7d32; }
+      #connection-status.disconnected { background: #c62828; }
+      
+      #resource-ui {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px 20px;
+        border-radius: 8px;
+        color: white;
+        font-family: sans-serif;
+        font-weight: bold;
+        font-size: 18px;
+        z-index: 1000;
+        pointer-events: none;
+        border: 2px solid #555;
+      }
+      .resource-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ─── PLAYER LIST (top-right, agar.io style) ─ */
+      #player-list {
+        position: fixed;
+        top: 50px;
+        right: 10px;
+        width: 190px;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px 0;
+        z-index: 50;
+        pointer-events: none;
+        backdrop-filter: blur(6px);
+      }
+
+      #player-list-title {
+        color: rgba(255,255,255,0.5);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0 14px 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        margin-bottom: 6px;
+      }
+
+      .player-list-item {
+        display: flex;
+        align-items: center;
+        padding: 5px 14px;
+        gap: 9px;
+      }
+
+      .player-list-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(255,255,255,0.3);
+      }
+
+      .player-list-name {
+        color: #fff;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .player-list-name.is-me {
+        color: #64b5f6;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+    <canvas id="ui-canvas"></canvas>
+
+    <!-- Login overlay (agar.io style) -->
+    <div id="login-screen">
+      <h1>⚔ .io Game</h1>
+      <p class="subtitle">Multiplayer Strategy</p>
+      <input
+        id="username-input"
+        type="text"
+        maxlength="20"
+        placeholder="İstifadəçi adı..."
+        autocomplete="off"
+        autofocus
+      />
+      <button id="play-btn">OYNA</button>
+      <p class="hint">WASD və ya ox düymələri ilə hərəkət et</p>
+    </div>
+
+    <!-- Connection status (bottom-left) -->
+    <div id="connection-status" class="disconnected">Offline</div>
+
+    <!-- Player list panel (top-right, agar.io style) -->
+    <div id="player-list">
+      <div id="player-list-title">🟢 Oyunçular</div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

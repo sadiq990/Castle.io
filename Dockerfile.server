@@ -1,0 +1,30 @@
+# ─── Server Dockerfile ────────────────────────────────────────────────────────
+# Uses tsx to run TypeScript directly — no separate build step needed.
+# pnpm workspaces: installs shared + server dependencies together.
+FROM node:22-alpine
+
+# Install pnpm (pinned version compatible with Node 22)
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+WORKDIR /app
+
+# Copy workspace manifests first (better layer caching)
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY shared/package.json ./shared/
+COPY server/package.json ./server/
+
+# Install all workspace deps
+RUN pnpm install
+
+# Copy source code
+COPY tsconfig.base.json ./
+COPY shared/ ./shared/
+COPY server/ ./server/
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV NODE_ENV=production
+
+# Run server directly with tsx (handles TypeScript + path aliases)
+CMD ["pnpm", "--filter", "server", "exec", "npx", "tsx", "src/index.ts"]

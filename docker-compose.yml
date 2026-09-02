@@ -1,0 +1,53 @@
+﻿# docker-compose.yml — io-game full stack
+#
+# Services:
+#   io-game-server  → Node.js + Socket.IO authoritative game server (port 3000, internal only)
+#   io-game-client  → Nginx serving built Vite app (port 8080, public)
+#
+# Port allocation (checked free on host):
+#   8080 → client (open in browser: http://localhost:8080)
+#   3000 → server (internal docker network only, not exposed to host)
+#
+# LAN multiplayer: friends open http://<your-ip>:8080
+# Nginx proxies /socket.io/* → io-game-server:3000 inside Docker network
+
+services:
+  io-game-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: io-game-server
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    # Server is NOT exposed to the host directly.
+    # It is only reachable from io-game-client via the internal Docker network.
+    expose:
+      - "3000"
+    networks:
+      - io-game-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/socket.io/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  io-game-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: io-game-client
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      io-game-server:
+        condition: service_started
+    networks:
+      - io-game-net
+
+networks:
+  io-game-net:
+    driver: bridge

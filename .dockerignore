@@ -1,0 +1,35 @@
+# .dockerignore — exclude files not needed inside Docker build context
+# Prevents node_modules, dist, logs from being copied into the image
+
+# Dependencies (installed inside container)
+node_modules
+**/node_modules
+**/.pnpm-store
+
+# Build outputs
+**/dist
+client/dist
+
+# Development files
+**/.env.local
+**/.env.development
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker files themselves (keep nginx.conf — needed by client image build)
+Dockerfile*
+docker-compose*.yml
+
+# Editor
+.vscode
+.idea

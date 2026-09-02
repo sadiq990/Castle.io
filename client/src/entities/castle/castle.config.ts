@@ -1,0 +1,16 @@
+export const CASTLE_CONFIG = {
+  WIDTH: 150,
+  HEIGHT: 130,
+  WALL_COLOR: '#90a4ae',
+  WALL_HIGHLIGHT_COLOR: '#cfd8dc',
+  ROOF_COLOR: '#546e7a',
+  DOOR_WIDTH: 14,
+  DOOR_HEIGHT: 18,
+  DOOR_COLOR: '#37474f',
+  TOWER_WIDTH: 16,
+  TOWER_HEIGHT: 30,
+  MERLON_SIZE: 7,
+  OWNED_TINT: 0.6,
+  SHADOW_COLOR: 'rgba(0,0,0,0.4)',
+  SHADOW_OFFSET_Y: 8,
+} as const;
