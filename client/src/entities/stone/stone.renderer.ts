@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 import type { StoneState } from 'shared/types/entities.js';
+import { getTerrainHeight } from '../../terrain/TerrainGenerator.js';
 
 function createStoneMesh(): THREE.Mesh {
   const geo = new THREE.DodecahedronGeometry(15, 0);
@@ -18,7 +19,8 @@ export function updateStone3D(sceneManager: SceneManager, stone: StoneState): vo
   let mesh = sceneManager.meshes.get(meshId);
   if (!mesh) {
     mesh = createStoneMesh();
-    mesh.position.set(stone.position.x, 5, stone.position.y);
+    const y = getTerrainHeight(stone.position.x, stone.position.y);
+    mesh.position.set(stone.position.x, y + 5, stone.position.y);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     mesh.rotation.x = (Math.random() - 0.5) * 0.2;
     mesh.rotation.z = (Math.random() - 0.5) * 0.2;

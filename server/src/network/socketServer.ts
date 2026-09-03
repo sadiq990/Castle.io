@@ -7,7 +7,7 @@ import { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from 'shared/types/network.js';
 import { GameWorld } from '../world/GameWorld.js';
 import { addPlayer, removePlayer } from '../player/playerServer.js';
-import { handlePlayerMove } from './eventHandlers.js';
+import { handlePlayerMove, handlePlayerAttack } from './eventHandlers.js';
 
 export function createSocketServer(port: number): void {
   const httpServer = createServer();
@@ -45,6 +45,7 @@ export function createSocketServer(port: number): void {
 
       // Register handlers only after join
       socket.on('playerMove', input => handlePlayerMove(socket, world, input));
+      socket.on('playerAttack', () => handlePlayerAttack(socket, world));
     });
 
     socket.on('disconnect', () => {

@@ -41,6 +41,6 @@ COPY --from=builder /app/client/dist /usr/share/nginx/html
 # Copy assets (SVGs, PNGs) into nginx html dir under /assets/
 COPY --from=builder /app/assets /usr/share/nginx/html/assets
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

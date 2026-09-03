@@ -18,69 +18,109 @@ function makeRng(seed: number) {
   };
 }
 
-function randomPositions(
+// ── Fixed lake definitions to prevent overlap ──────────────────────────────
+export const WATER_LAKES = [
+  { id: 'water-1', position: { x: 950, y: 1150 }, radius: 250 },
+  { id: 'water-2', position: { x: 2100, y: 1950 }, radius: 270 },
+] as const;
+
+function isBlocked(x: number, y: number, buffer = 60): boolean {
+  // Lakes exclusion zone (water radius + buffer to ensure no trees or stones touch water)
+  for (const lake of WATER_LAKES) {
+    const dx = x - lake.position.x;
+    const dy = y - lake.position.y;
+    if (Math.hypot(dx, dy) < lake.radius + buffer) {
+      return true;
+    }
+  }
+
+  // Castles exclusion zone
+  if (Math.hypot(x - 500, y - 500) < 220 || Math.hypot(x - (MAP - 500), y - (MAP - 500)) < 220) {
+    return true;
+  }
+
+  return false;
+}
+
+function randomFilteredPositions(
   count: number,
   rng: () => number,
-  margin = 80,
+  margin = 100,
+  waterBuffer = 70,
 ): Array<{ id: string; position: Vector2 }> {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${i}`,                          // placeholder — replaced below with proper ids
-    position: {
-      x: margin + rng() * (MAP - margin * 2),
-      y: margin + rng() * (MAP - margin * 2),
-    },
-  }));
+  const result: Array<{ id: string; position: Vector2 }> = [];
+  let attempts = 0;
+  const maxAttempts = count * 60;
+
+  while (result.length < count && attempts < maxAttempts) {
+    attempts++;
+    const x = margin + rng() * (MAP - margin * 2);
+    const y = margin + rng() * (MAP - margin * 2);
+
+    if (!isBlocked(x, y, waterBuffer)) {
+      result.push({
+        id: `${result.length + 1}`,
+        position: { x, y },
+      });
+    }
+  }
+  return result;
 }
 
 // ── Generate all objects ──────────────────────────────────────────────────
-const rng = makeRng(42); // fixed seed → same layout every reload
+const rng = makeRng(42); // fixed seed → identical layout every reload
 
-const TREE_COUNT   = 80;
-const BRUSH_COUNT  = 60;
-const STONE_COUNT  = 30;
-const BERRY_COUNT  = 50;
-const WATER_COUNT  = 2;
+const TREE_COUNT     = 220; // Increased for a rich, vibrant forest
+const BRUSH_COUNT    = 85;
+const STONE_COUNT    = 45;
+const BERRY_COUNT    = 50;
+const MOUNTAIN_COUNT = 28;  // Rolling hills ("təpələr")
 
-const rawTrees  = randomPositions(TREE_COUNT,  rng);
-const rawBrush  = randomPositions(BRUSH_COUNT, rng);
-const rawStones = randomPositions(STONE_COUNT, rng);
-const rawBerries = randomPositions(BERRY_COUNT, rng);
-const rawWaters  = randomPositions(WATER_COUNT, rng, 200); // larger margin for lakes
-
+// Generate hills with larger buffer so hills don't flood into water
+const rawMountains = randomFilteredPositions(MOUNTAIN_COUNT, rng, 160, 160);
+const rawTrees     = randomFilteredPositions(TREE_COUNT,     rng, 80,  60);
+const rawBrush     = randomFilteredPositions(BRUSH_COUNT,    rng, 80,  40);
+const rawStones    = randomFilteredPositions(STONE_COUNT,    rng, 80,  60);
+const rawBerries   = randomFilteredPositions(BERRY_COUNT,   rng, 80,  40);
 
 export const MAP_CONFIG = {
   mapSize: MAP,
 
-  trees: rawTrees.map((t, i) => ({
-    id: `tree-${i + 1}`,
+  trees: rawTrees.map(t => ({
+    id: `tree-${t.id}`,
     position: t.position,
   })) as ReadonlyArray<{ id: string; position: Vector2 }>,
 
-  brushes: rawBrush.map((b, i) => ({
-    id: `brush-${i + 1}`,
+  brushes: rawBrush.map(b => ({
+    id: `brush-${b.id}`,
     position: b.position,
   })) as ReadonlyArray<{ id: string; position: Vector2 }>,
 
-  berries: rawBerries.map((b, i) => ({
-    id: `berry-${i + 1}`,
+  berries: rawBerries.map(b => ({
+    id: `berry-${b.id}`,
     position: b.position,
   })) as ReadonlyArray<{ id: string; position: Vector2 }>,
 
-  waters: rawWaters.map((w, i) => ({
-    id: `water-${i + 1}`,
-    position: w.position,
+  mountains: rawMountains.map(m => ({
+    id: `mountain-${m.id}`,
+    position: m.position,
   })) as ReadonlyArray<{ id: string; position: Vector2 }>,
 
-  stones: rawStones.map((s, i) => ({
-    id: `stone-${i + 1}`,
+  waters: WATER_LAKES.map(w => ({
+    id: w.id,
+    position: { ...w.position },
+    radius: w.radius,
+  })) as ReadonlyArray<{ id: string; position: Vector2; radius: number }>,
+
+  stones: rawStones.map(s => ({
+    id: `stone-${s.id}`,
     position: s.position,
   })) as ReadonlyArray<{ id: string; position: Vector2 }>,
 
-
   castles: [
-    { id: 'castle-1', position: { x: 500,       y: 500       }, ownerId: null },
-    { id: 'castle-2', position: { x: MAP - 500, y: MAP - 500 }, ownerId: null },
-  ] as ReadonlyArray<{ id: string; position: Vector2; ownerId: string | null }>,
+    { id: 'castle-1', position: { x: 500,       y: 500       }, team: 'blue', ownerId: null },
+    { id: 'castle-2', position: { x: MAP - 500, y: MAP - 500 }, team: 'red',  ownerId: null },
+  ] as ReadonlyArray<{ id: string; position: Vector2; team: 'blue' | 'red'; ownerId: string | null }>,
 
   playerSpawns: [
     { x: 400,       y: 400       },
@@ -90,4 +130,3 @@ export const MAP_CONFIG = {
     { x: MAP / 2,   y: MAP / 2   },
   ] as ReadonlyArray<Vector2>,
 } as const;
-

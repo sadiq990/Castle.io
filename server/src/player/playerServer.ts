@@ -1,26 +1,38 @@
-// Server-side player lifecycle: join, leave, move.
+﻿// Server-side player lifecycle: join, leave, move.
 // All player state mutations happen here.
-// Input validation: clamp dx/dy to [-1, 1].
 
-import type { PlayerState, GameWorldState, Vector2 } from 'shared/types/entities.js';
+import type { PlayerState, GameWorldState, Team, Vector2 } from 'shared/types/entities.js';
 import type { MovementInput } from 'shared/types/network.js';
-import { DEFAULT_PLAYER_SPEED, PLAYER_COLORS } from 'shared/constants/game.constants.js';
-import { SERVER_MAP_DATA } from '../map/mapData.server.js';
-
-let spawnIndex = 0;
+import { DEFAULT_PLAYER_SPEED } from 'shared/constants/game.constants.js';
 
 export function addPlayer(world: GameWorldState, id: string, name: string): PlayerState {
-  const spawns = SERVER_MAP_DATA.playerSpawns;
-  const position: Vector2 = { ...spawns[spawnIndex % spawns.length]! };
-  spawnIndex++;
+  // Balanced team assignment: blue vs red
+  const players = Object.values(world.players);
+  const blueCount = players.filter(p => p.team === 'blue').length;
+  const redCount = players.filter(p => p.team === 'red').length;
 
-  const color = PLAYER_COLORS[Object.keys(world.players).length % PLAYER_COLORS.length] ?? '#ffffff';
+  const team: Team = blueCount <= redCount ? 'blue' : 'red';
+  const color = team === 'blue' ? '#2E6FE0' : '#D9302F';
+
+  // Spawn near team castle with small scatter
+  const baseSpawn: Vector2 = team === 'blue'
+    ? { x: 400, y: 400 }
+    : { x: 2600, y: 2600 };
+
+  const spawnOffset = (Math.random() - 0.5) * 80;
+  const position: Vector2 = {
+    x: Math.max(100, Math.min(world.mapSize - 100, baseSpawn.x + spawnOffset)),
+    y: Math.max(100, Math.min(world.mapSize - 100, baseSpawn.y + spawnOffset)),
+  };
 
   const newPlayer: PlayerState = {
-    id: id,
-    name: name,
+    id,
+    name,
     position,
     color,
+    team,
+    hasFlag: false,
+    speedMultiplier: 1.0,
     facing: 0,
   };
 
@@ -29,7 +41,18 @@ export function addPlayer(world: GameWorldState, id: string, name: string): Play
 }
 
 export function removePlayer(world: GameWorldState, id: string): void {
-  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  const player = world.players[id];
+  if (player && player.hasFlag) {
+    // Drop any carried flag
+    for (const flag of Object.values(world.ctf.flags)) {
+      if (flag.carrierId === id) {
+        flag.status = 'DROPPED';
+        flag.carrierId = null;
+        flag.dropTimer = 30;
+      }
+    }
+  }
+
   delete world.players[id];
 }
 
@@ -42,7 +65,6 @@ export function applyMovementInput(
   const player = world.players[playerId];
   if (!player) return;
 
-  // Clamp to prevent cheating
   const dx = Math.max(-1, Math.min(1, input.dx));
   const dy = Math.max(-1, Math.min(1, input.dy));
 
@@ -53,6 +75,8 @@ export function applyMovementInput(
   const ny = dy / len;
 
   player.facing = Math.atan2(ny, nx);
-  player.position.x = Math.max(0, Math.min(world.mapSize, player.position.x + nx * DEFAULT_PLAYER_SPEED * dt));
-  player.position.y = Math.max(0, Math.min(world.mapSize, player.position.y + ny * DEFAULT_PLAYER_SPEED * dt));
+  const currentSpeed = DEFAULT_PLAYER_SPEED * (player.speedMultiplier ?? 1.0);
+
+  player.position.x = Math.max(0, Math.min(world.mapSize, player.position.x + nx * currentSpeed * dt));
+  player.position.y = Math.max(0, Math.min(world.mapSize, player.position.y + ny * currentSpeed * dt));
 }

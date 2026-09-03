@@ -14,3 +14,9 @@ export function handlePlayerMove(socket: GameSocket, world: GameWorld, input: Mo
   if (!playerId) return;
   world.queueInput(playerId, input.dx, input.dy);
 }
+
+export function handlePlayerAttack(socket: GameSocket, world: GameWorld): void {
+  const playerId = socket.data.playerId;
+  if (!playerId) return;
+  world.handleAttack(playerId);
+}

@@ -1,89 +1,149 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 
-const vertexShader = `
+const waterVertexShader = `
   varying vec2 vUv;
+  varying vec3 vWorldPosition;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPos.xyz;
+    gl_Position = projectionMatrix * viewMatrix * worldPos;
   }
 `;
 
-const fragmentShader = `
+const waterFragmentShader = `
   uniform float time;
   varying vec2 vUv;
+  varying vec3 vWorldPosition;
+
   void main() {
-    vec2 uv = vUv * 12.0; 
-    
-    // Create animated wavy pattern
-    float wave = sin(uv.x + time * 1.2) * cos(uv.y + time * 1.5) * 0.5 + 0.5;
-    
-    vec3 baseColor = vec3(0.08, 0.4, 0.75); // Dark blue
-    vec3 waveColor = vec3(0.2, 0.65, 0.95); // Light cyan waves
-    
-    vec3 finalColor = mix(baseColor, waveColor, wave);
-    gl_FragColor = vec4(finalColor, 0.85); // Transparent water
+    // Distance from center for radial depth
+    vec2 centeredUv = vUv - 0.5;
+    float distFromCenter = length(centeredUv) * 2.0;
+
+    // Dual-wave interference pattern
+    vec2 waveCoords = vUv * 16.0;
+    float w1 = sin(waveCoords.x + time * 1.1) * cos(waveCoords.y + time * 1.3);
+    float w2 = sin(waveCoords.x * 1.8 - time * 0.9) * cos(waveCoords.y * 1.6 + time * 1.2);
+    float wave = (w1 + w2) * 0.5;
+
+    // Water depth colors
+    vec3 deepWaterColor    = vec3(0.05, 0.32, 0.68); // Deep sapphire blue
+    vec3 shallowWaterColor = vec3(0.15, 0.68, 0.88); // Cyan / aquamarine shore
+    vec3 foamColor         = vec3(0.85, 0.95, 1.0);  // Soft white foam
+
+    // Mix based on depth and gentle wave crests
+    vec3 waterColor = mix(deepWaterColor, shallowWaterColor, smoothstep(0.15, 0.95, distFromCenter));
+
+    // Dynamic wave ripples & highlights
+    float ripple = smoothstep(0.2, 0.55, wave);
+    waterColor = mix(waterColor, shallowWaterColor * 1.2, ripple * 0.4);
+
+    // Sun reflection / specular glint
+    float sunGlint = pow(max(0.0, wave), 4.0) * 0.45;
+    waterColor += vec3(sunGlint);
+
+    // Gentle shore foam ring
+    float shoreFoam = smoothstep(0.85, 0.98, distFromCenter) * (0.35 + 0.25 * sin(time * 3.0 + centeredUv.x * 20.0));
+    waterColor = mix(waterColor, foamColor, shoreFoam);
+
+    gl_FragColor = vec4(waterColor, 0.88);
   }
 `;
 
-function createIrregularLakeGeometry(radius: number): THREE.BufferGeometry {
-  const geo = new THREE.CylinderGeometry(radius, radius, 2, 64, 1);
+// Generates an organic curving natural lake boundary
+function createOrganicLakeShape(radius: number, scaleMultiplier = 1.0): THREE.BufferGeometry {
+  const segments = 72;
+  const geo = new THREE.CylinderGeometry(radius * scaleMultiplier, radius * scaleMultiplier, 2, segments, 1);
   const pos = geo.attributes.position;
-  
+
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    
-    // Ignore top and bottom center vertices (they are at x=0, z=0)
+
+    // Skip top/bottom center vertices
     if (Math.abs(x) < 0.1 && Math.abs(z) < 0.1) continue;
-    
+
     const angle = Math.atan2(z, x);
-    
-    // Create abnormal irregular shapes using sine waves
-    const noise = Math.sin(angle * 3) * (radius * 0.2) 
-                + Math.cos(angle * 5) * (radius * 0.15)
-                + Math.sin(angle * 7) * (radius * 0.1);
-                
-    const scale = 1.0 + (noise / radius);
-    
-    pos.setX(i, x * scale);
-    pos.setZ(i, z * scale);
+
+    // Smooth harmonic organic waves (natural curved bay & lagoon profile)
+    const perturbation = 1.0
+      + 0.15 * Math.sin(angle * 3.0)
+      + 0.10 * Math.cos(angle * 5.0)
+      + 0.08 * Math.sin(angle * 2.0 + 1.2);
+
+    pos.setX(i, x * perturbation);
+    pos.setZ(i, z * perturbation);
   }
-  
+
   geo.computeVertexNormals();
-  geo.translate(0, -1, 0);
   return geo;
 }
 
-export function updateWater3D(sceneManager: SceneManager, water: { id: string, position: { x: number, y: number } }, time: number): void {
+function createLakeEntity(radius: number): THREE.Group {
+  const lakeGroup = new THREE.Group();
+
+  // 1. Natural Sandy / Wet Mud Shore Border (slightly larger, sitting under water)
+  const shoreGeo = createOrganicLakeShape(radius, 1.08);
+  shoreGeo.translate(0, -0.4, 0);
+  const shoreMat = new THREE.MeshStandardMaterial({
+    color: 0xc8b282, // Warm wet sand / riverbank shore
+    roughness: 0.92,
+    metalness: 0.02,
+  });
+  const shoreMesh = new THREE.Mesh(shoreGeo, shoreMat);
+  shoreMesh.receiveShadow = true;
+  lakeGroup.add(shoreMesh);
+
+  // 2. Animated Crystal Water Surface
+  const waterGeo = createOrganicLakeShape(radius, 1.0);
+  waterGeo.translate(0, 0.2, 0); // Sits slightly above shore
+
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0.0 },
+    },
+    vertexShader: waterVertexShader,
+    fragmentShader: waterFragmentShader,
+    transparent: true,
+  });
+
+  const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+  waterMesh.name = 'waterSurface';
+  waterMesh.receiveShadow = true;
+  lakeGroup.add(waterMesh);
+
+  return lakeGroup;
+}
+
+export function updateWater3D(
+  sceneManager: SceneManager,
+  water: { id: string; position: { x: number; y: number }; radius?: number },
+  time: number
+): void {
   const meshId = 'water-' + water.id;
   let mesh = sceneManager.meshes.get(meshId);
-  
+
   if (!mesh) {
-    // Generate a large irregular lake
-    const geo = createIrregularLakeGeometry(250);
-
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { time: { value: 0.0 } },
-      vertexShader,
-      fragmentShader,
-      transparent: true
-    });
-
-    mesh = new THREE.Mesh(geo, mat);
+    const radius = water.radius ?? 250;
+    mesh = createLakeEntity(radius);
     mesh.position.set(water.position.x, 0, water.position.y);
-    mesh.receiveShadow = true;
-    
-    // Random rotation so the 2 lakes don't look exactly identical
-    mesh.rotation.y = Math.random() * Math.PI * 2;
-    
+
+    // Deterministic rotation based on id so shape stays fixed
+    const seedAngle = (water.id.charCodeAt(water.id.length - 1) % 10) * 0.6;
+    mesh.rotation.y = seedAngle;
+
     sceneManager.scene.add(mesh);
     sceneManager.meshes.set(meshId, mesh);
   } else {
-    // Update shader time for animation
-    const mat = (mesh as THREE.Mesh).material as THREE.ShaderMaterial;
-    if (mat.uniforms && mat.uniforms.time) {
-      mat.uniforms.time.value = time;
+    // Update shader time for gentle wave motion
+    const waterSurface = mesh.getObjectByName('waterSurface') as THREE.Mesh | undefined;
+    if (waterSurface) {
+      const mat = waterSurface.material as THREE.ShaderMaterial;
+      if (mat.uniforms?.time) {
+        mat.uniforms.time.value = time;
+      }
     }
   }
 }

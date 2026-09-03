@@ -1,4 +1,4 @@
-// Authoritative game world.
+﻿// Authoritative game world.
 // Owns the canonical GameWorldState and the fixed-rate tick loop.
 // Server broadcasts worldState to all clients on every tick.
 
@@ -8,6 +8,7 @@ import type { GameWorldState } from 'shared/types/entities.js';
 import { TICK_RATE } from 'shared/constants/game.constants.js';
 import { createInitialWorld } from './worldFactory.js';
 import { applyMovementInput } from '../player/playerServer.js';
+import { updateCTF, handlePlayerAttack } from '../ctf/flagServer.js';
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -33,11 +34,17 @@ export class GameWorld {
     pendingInputs.set(playerId, { dx, dy });
   }
 
+  handleAttack(playerId: string): void {
+    handlePlayerAttack(this.state, playerId, (notif) => {
+      this.io.emit('flagNotification', notif);
+    });
+  }
+
   start(): void {
     const tickMs = 1000 / TICK_RATE;
     this.lastTickTime = Date.now();
     this.tickInterval = setInterval(() => this.tick(), tickMs);
-    console.log(`[GameWorld] Tick loop started at ${TICK_RATE} TPS`);
+    console.log(`[GameWorld] Tick loop started at ${TICK_RATE} TPS with CTF Flag System`);
   }
 
   stop(): void {
@@ -47,21 +54,22 @@ export class GameWorld {
     }
   }
 
-
-
   private tick(): void {
     const now = Date.now();
     const dt = (now - this.lastTickTime) / 1000;
     this.lastTickTime = now;
 
-    // Apply all pending inputs
+    // 1. Apply movement inputs
     for (const [playerId, input] of pendingInputs) {
       applyMovementInput(this.state, playerId, input, dt);
     }
-    // Don't clear inputs — hold last direction until a new one arrives (feels more responsive)
-    // To stop, client sends { dx: 0, dy: 0 }
 
-    // Broadcast state snapshot to all clients
+    // 2. Authoritative CTF Flag State Machine update
+    updateCTF(this.state, dt, (notif) => {
+      this.io.emit('flagNotification', notif);
+    });
+
+    // 3. Broadcast snapshot to all clients
     this.io.emit('worldState', this.state);
   }
 }

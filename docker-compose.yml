@@ -1,4 +1,4 @@
-﻿# docker-compose.yml — io-game full stack
+# docker-compose.yml — io-game full stack
 #
 # Services:
 #   io-game-server  → Node.js + Socket.IO authoritative game server (port 3000, internal only)
@@ -41,7 +41,7 @@ services:
     container_name: io-game-client
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3001:80"
     depends_on:
       io-game-server:
         condition: service_started
