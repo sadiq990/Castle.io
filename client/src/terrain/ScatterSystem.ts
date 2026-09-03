@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { getTerrainHeight, getTerrainSlope } from './TerrainGenerator.js';
 import { isNearPath } from './PathSystem.js';
 import { MAP_CONFIG } from '../map/map.config.js';
@@ -134,8 +134,9 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
       if (isNearPath(x, z, 30) && Math.random() > 0.25) continue;
 
       const y = getTerrainHeight(x, z);
+      if (y < 0.2) continue; // Don't spawn grass tufts underwater or on beaches!
       const slope = getTerrainSlope(x, z);
-      if (slope > 0.45) continue; // Don't place on vertical cliffs
+      if (slope > 0.45) continue; // Don't place on steep drops
 
       dummy.position.set(x, y, z);
 

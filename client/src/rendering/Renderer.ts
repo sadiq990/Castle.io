@@ -21,6 +21,7 @@ import { initResourceZones3D } from '../resources/ResourceManager.js';
 import { updateSlaves3D } from '../slaves/SlaveManager.js';
 import { updateFences3D, syncWorldFences } from '../fences/FenceManager.js';
 import { syncTowersAndArrows3D } from '../towers/TowerManager.js';
+import { createOceanMesh, updateOcean } from '../terrain/ocean.renderer.js';
 
 let terrainInitialized = false;
 let lastRenderTime = 0;
@@ -29,25 +30,29 @@ function ensureWorldEnvironment(sceneManager: SceneManager, mapSize: number): vo
   if (terrainInitialized) return;
   terrainInitialized = true;
 
-  // 1. Unified 3D Heightmap Terrain
+  // 1. Vast Infinite Surrounding Ocean (14000x14000 extending to horizon)
+  const oceanMesh = createOceanMesh({ x: mapSize / 2, y: mapSize / 2 });
+  sceneManager.scene.add(oceanMesh);
+
+  // 2. Unified 3D Heightmap Island Terrain (4600x4600)
   const terrainMesh = createTerrainMesh(mapSize);
   sceneManager.scene.add(terrainMesh);
 
-  // 2. Catmull-Rom Dirt Path Ribbon
+  // 3. Catmull-Rom Dirt Path Ribbon
   const pathMesh = createPathMesh();
   sceneManager.scene.add(pathMesh);
 
-  // 3. InstancedMesh Procedural Scattering (3D Grass, Rocks, Bushes)
+  // 4. InstancedMesh Procedural Scattering (3D Grass, Rocks, Bushes)
   const scatterGroup = createScatterMeshes(mapSize);
   sceneManager.scene.add(scatterGroup);
 
-  // 4. Floating Water Lilies on Lakes
+  // 5. Floating Water Lilies on Lakes
   initWaterLilies(sceneManager);
 
-  // 5. Puffy Low-Poly Clouds in Sky
+  // 6. Puffy Low-Poly Clouds in Sky
   initClouds(sceneManager, mapSize);
 
-  // 6. Forest and Mine Resource Zones
+  // 7. Forest and Mine Resource Zones
   initResourceZones3D(sceneManager);
 }
 
@@ -60,10 +65,11 @@ export function renderFrame(
   const dt = lastRenderTime === 0 ? 0.016 : Math.min(0.1, time - lastRenderTime);
   lastRenderTime = time;
 
-  // 1. One-time procedurally generated terrain, road, clouds, and scattering
+  // 1. One-time procedurally generated terrain, ocean, road, clouds, and scattering
   ensureWorldEnvironment(sceneManager, state.mapSize);
 
-  // 2. Animated Sky Clouds & Water Lilies
+  // 2. Animated Ocean, Sky Clouds & Water Lilies
+  updateOcean(time);
   updateClouds(state.mapSize, dt);
   updateWaterLilies3D(time);
 
