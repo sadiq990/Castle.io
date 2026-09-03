@@ -21,18 +21,18 @@ export class SceneManager {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
-    const skyColor = new THREE.Color(0x7ec8e3); // Serene oceanic horizon sky
+    const skyColor = new THREE.Color(0xa2d2e8); // Serene pastel fantasy sky
     this.scene.background = skyColor; 
-    this.scene.fog = new THREE.Fog(0x7ec8e3, 3500, 9500); // Distant horizon fog blending ocean into sky
+    this.scene.fog = new THREE.Fog(0xa2d2e8, 1800, 4800); // Clear atmosphere without white fogging on hills
 
-    this.camera = new THREE.PerspectiveCamera(50, this.width / this.height, 1, 12000);
+    this.camera = new THREE.PerspectiveCamera(50, this.width / this.height, 1, 5000);
     this.camera.position.set(0, 1000, 800); 
     this.camera.lookAt(0, 0, 0);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xfffaea, 1.3);
+    const dirLight = new THREE.DirectionalLight(0xffffee, 1.2);
     dirLight.position.set(500, 1500, 500);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;

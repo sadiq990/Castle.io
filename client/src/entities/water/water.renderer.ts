@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 
 const waterVertexShader = `
@@ -52,23 +52,26 @@ const waterFragmentShader = `
   }
 `;
 
-// Generates an organic curving natural lake water disc
-function createOrganicLakeShape(radius: number): THREE.BufferGeometry {
+// Generates an organic curving natural lake boundary
+function createOrganicLakeShape(radius: number, scaleMultiplier = 1.0): THREE.BufferGeometry {
   const segments = 72;
-  const geo = new THREE.CircleGeometry(radius, segments);
-  geo.rotateX(-Math.PI / 2); // Lay flat horizontally
+  const geo = new THREE.CylinderGeometry(radius * scaleMultiplier, radius * scaleMultiplier, 2, segments, 1);
   const pos = geo.attributes.position;
 
-  for (let i = 1; i < pos.count; i++) {
+  for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
+
+    // Skip top/bottom center vertices
+    if (Math.abs(x) < 0.1 && Math.abs(z) < 0.1) continue;
+
     const angle = Math.atan2(z, x);
 
     // Smooth harmonic organic waves (natural curved bay & lagoon profile)
     const perturbation = 1.0
-      + 0.12 * Math.sin(angle * 3.0)
-      + 0.08 * Math.cos(angle * 5.0)
-      + 0.06 * Math.sin(angle * 2.0 + 1.2);
+      + 0.15 * Math.sin(angle * 3.0)
+      + 0.10 * Math.cos(angle * 5.0)
+      + 0.08 * Math.sin(angle * 2.0 + 1.2);
 
     pos.setX(i, x * perturbation);
     pos.setZ(i, z * perturbation);
@@ -81,9 +84,21 @@ function createOrganicLakeShape(radius: number): THREE.BufferGeometry {
 function createLakeEntity(radius: number): THREE.Group {
   const lakeGroup = new THREE.Group();
 
-  // Animated Crystal Water Surface (Flat plane cleanly submerged inside terrain basin at y = -0.4)
-  const waterGeo = createOrganicLakeShape(radius);
-  waterGeo.translate(0, -0.4, 0);
+  // 1. Natural Sandy / Wet Mud Shore Border (slightly larger, sitting under water)
+  const shoreGeo = createOrganicLakeShape(radius, 1.08);
+  shoreGeo.translate(0, -0.4, 0);
+  const shoreMat = new THREE.MeshStandardMaterial({
+    color: 0xc8b282, // Warm wet sand / riverbank shore
+    roughness: 0.92,
+    metalness: 0.02,
+  });
+  const shoreMesh = new THREE.Mesh(shoreGeo, shoreMat);
+  shoreMesh.receiveShadow = true;
+  lakeGroup.add(shoreMesh);
+
+  // 2. Animated Crystal Water Surface
+  const waterGeo = createOrganicLakeShape(radius, 1.0);
+  waterGeo.translate(0, 0.2, 0); // Sits slightly above shore
 
   const waterMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -92,7 +107,6 @@ function createLakeEntity(radius: number): THREE.Group {
     vertexShader: waterVertexShader,
     fragmentShader: waterFragmentShader,
     transparent: true,
-    depthWrite: false,
   });
 
   const waterMesh = new THREE.Mesh(waterGeo, waterMat);
