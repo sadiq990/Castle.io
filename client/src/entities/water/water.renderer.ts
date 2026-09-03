@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 
 const waterVertexShader = `
@@ -84,21 +84,9 @@ function createOrganicLakeShape(radius: number, scaleMultiplier = 1.0): THREE.Bu
 function createLakeEntity(radius: number): THREE.Group {
   const lakeGroup = new THREE.Group();
 
-  // 1. Natural Sandy / Wet Mud Shore Border (slightly larger, sitting under water)
-  const shoreGeo = createOrganicLakeShape(radius, 1.08);
-  shoreGeo.translate(0, -0.4, 0);
-  const shoreMat = new THREE.MeshStandardMaterial({
-    color: 0xc8b282, // Warm wet sand / riverbank shore
-    roughness: 0.92,
-    metalness: 0.02,
-  });
-  const shoreMesh = new THREE.Mesh(shoreGeo, shoreMat);
-  shoreMesh.receiveShadow = true;
-  lakeGroup.add(shoreMesh);
-
-  // 2. Animated Crystal Water Surface
+  // Animated Crystal Water Surface
   const waterGeo = createOrganicLakeShape(radius, 1.0);
-  waterGeo.translate(0, 0.2, 0); // Sits slightly above shore
+  waterGeo.translate(0, -0.3, 0); // Sits cleanly submerged inside terrain lake depression
 
   const waterMat = new THREE.ShaderMaterial({
     uniforms: {
