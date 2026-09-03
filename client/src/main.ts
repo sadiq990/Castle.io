@@ -11,9 +11,10 @@ import { connectToServer, getSocket } from './network/socketClient.js';
 import { initWorldSync } from './network/worldSync.js';
 import { MAP_CONFIG } from './map/map.config.js';
 import { initFlagUI, updateFlagUI, showCTFToast } from './ui/flagUI.js';
-import { initResourceUI } from './ui/resourceUI.js';
+import { initResourceUI, isTowerBuildMode } from './ui/resourceUI.js';
 import { initSlaves } from './slaves/SlaveManager.js';
 import { attemptBuildFence, attemptAttackFence, setSceneManagerForFences, getActiveBuildType } from './fences/FenceManager.js';
+import { attemptBuildTower } from './towers/TowerManager.js';
 
 // ─── DOM REFS ────────────────────────────────────────────────
 const loginScreen    = document.getElementById('login-screen')!;
@@ -35,7 +36,11 @@ initFlagUI();
 setSceneManagerForFences(sceneManager);
 const handleBuild = () => {
   const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
-  if (myPlayer) {
+  if (!myPlayer) return;
+
+  if (isTowerBuildMode()) {
+    attemptBuildTower(sceneManager, myPlayer.position, myPlayer.facing ?? 0, myPlayer.team);
+  } else if (getActiveBuildType()) {
     attemptBuildFence(sceneManager, myPlayer.position, myPlayer.facing ?? 0, myPlayer.team);
   }
 };
@@ -60,8 +65,8 @@ initLocalPlayerController(() => {
   const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
   if (!myPlayer) return;
 
-  // 1. If in Build Mode -> Build fence!
-  if (getActiveBuildType()) {
+  // 1. If in Build Mode (Tower or Fence) -> Build!
+  if (isTowerBuildMode() || getActiveBuildType()) {
     handleBuild();
     return;
   }
@@ -69,7 +74,7 @@ initLocalPlayerController(() => {
   // 2. Attack opponent fence if in range
   attemptAttackFence(sceneManager, myPlayer.position, myPlayer.team, myPlayer.hasFlag);
 
-  // 3. Attack other players (knock flag)
+  // 3. Attack other players (knock flag & deal melee damage)
   socket.emit('playerAttack');
 });
 

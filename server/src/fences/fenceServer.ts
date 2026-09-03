@@ -1,4 +1,4 @@
-﻿import type { FenceState, FenceType, GameWorldState, PlayerState, Team, Vector2 } from 'shared/types/entities.js';
+import type { FenceState, FenceType, GameWorldState, PlayerState, Team, Vector2 } from 'shared/types/entities.js';
 
 export const FENCE_CONFIGS: Record<FenceType, { costWood: number; costStone: number; hp: number; damagePerHit: number }> = {
   WOOD: { costWood: 5, costStone: 0, hp: 30, damagePerHit: 15 },
@@ -84,13 +84,10 @@ export function handleFenceAttack(
   const dist = Math.hypot(fence.position.x - player.position.x, fence.position.y - player.position.y);
   if (dist > 75) return { hit: false };
 
-  // STRICT RULE: ONLY flag carriers can damage fences!
-  if (!player.hasFlag) {
-    return { hit: true, damaged: false };
-  }
-
+  // Both teams can attack and breach opponent fences!
   const config = FENCE_CONFIGS[fence.type];
-  fence.hp = Math.max(0, fence.hp - config.damagePerHit);
+  const damage = player.hasFlag ? config.damagePerHit * 1.5 : config.damagePerHit;
+  fence.hp = Math.max(0, fence.hp - damage);
 
   if (fence.hp <= 0) {
     fence.isBroken = true;

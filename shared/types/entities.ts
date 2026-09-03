@@ -37,8 +37,31 @@ export interface PlayerState {
   speedMultiplier: number;
   waterSpeedMultiplier?: number;
   resources?: PlayerResources;
+  hp: number;
+  maxHp: number;
+  lives: number;
   /** Direction the player is facing, in radians. 0 = right. */
   facing: number;
+}
+
+export interface TowerState {
+  id: string;
+  team: Team;
+  position: Vector2;
+  hp: number;
+  maxHp: number;
+  lastFireTime: number;
+  range: number;
+  isDestroyed: boolean;
+}
+
+export interface ArrowState {
+  id: string;
+  startPos: Vector2;
+  targetPos: Vector2;
+  position: Vector2;
+  team: Team;
+  progress: number;
 }
 
 export interface TreeState {
@@ -81,6 +104,8 @@ export interface GameWorldState {
   stones: StoneState[];
   castles: CastleState[];
   fences: Record<string, FenceState>;
+  towers: Record<string, TowerState>;
+  arrows: ArrowState[];
   ctf: CTFState;
   mapSize: number;
 }

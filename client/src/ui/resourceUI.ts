@@ -1,10 +1,19 @@
-﻿import { getPlayerResources, onResourceChange } from '../resources/ResourceManager.js';
+import { getPlayerResources, onResourceChange } from '../resources/ResourceManager.js';
 import { getActiveBuildType, setActiveBuildType } from '../fences/FenceManager.js';
 import { commandAllSlaves } from '../slaves/SlaveManager.js';
 
 let containerEl: HTMLDivElement | null = null;
 let resourceHudEl: HTMLDivElement | null = null;
 let buildPanelEl: HTMLDivElement | null = null;
+let towerBuildMode = false;
+
+export function isTowerBuildMode(): boolean {
+  return towerBuildMode;
+}
+
+export function setTowerBuildMode(val: boolean): void {
+  towerBuildMode = val;
+}
 
 export function initResourceUI(onBuildClick?: () => void): void {
   if (containerEl) return;
@@ -56,14 +65,17 @@ export function initResourceUI(onBuildClick?: () => void): void {
 
   buildPanelEl.innerHTML = `
     <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 2px;">
-      🧱 Hasar Tikintisi
+      🧱 Müdafiə & Qüllə
     </div>
-    <div style="display: flex; gap: 6px;">
-      <button id="btn-build-wood" style="flex: 1; padding: 7px 4px; background: #8b5a2b; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;">
+    <div style="display: flex; gap: 4px;">
+      <button id="btn-build-wood" style="flex: 1; padding: 6px 2px; background: #8b5a2b; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;">
         🪵 Taxta (5)
       </button>
-      <button id="btn-build-stone" style="flex: 1; padding: 7px 4px; background: #57534e; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;">
+      <button id="btn-build-stone" style="flex: 1; padding: 6px 2px; background: #57534e; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;">
         🪨 Daş (10)
+      </button>
+      <button id="btn-build-tower" style="flex: 1.2; padding: 6px 2px; background: #1e3a8a; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;">
+        🏹 Qüllə (15+15)
       </button>
     </div>
 
@@ -82,7 +94,7 @@ export function initResourceUI(onBuildClick?: () => void): void {
       </button>
     </div>
     <div style="font-size: 10px; color: #64748b; margin-top: 4px; text-align: center;">
-      Qısa yol: [1] Taxta, [2] Daş, [B] Tik
+      Qısa yol: [1] Taxta, [2] Daş, [3] Qüllə, [B] Tik
     </div>
   `;
   document.body.appendChild(buildPanelEl);
@@ -105,16 +117,25 @@ export function initResourceUI(onBuildClick?: () => void): void {
   // Wire Buttons
   const btnWood = document.getElementById('btn-build-wood')!;
   const btnStone = document.getElementById('btn-build-stone')!;
+  const btnTower = document.getElementById('btn-build-tower')!;
 
   btnWood.addEventListener('click', () => {
+    towerBuildMode = false;
     const cur = getActiveBuildType();
     setActiveBuildType(cur === 'WOOD' ? null : 'WOOD');
     updateBuildButtons();
   });
 
   btnStone.addEventListener('click', () => {
+    towerBuildMode = false;
     const cur = getActiveBuildType();
     setActiveBuildType(cur === 'STONE' ? null : 'STONE');
+    updateBuildButtons();
+  });
+
+  btnTower.addEventListener('click', () => {
+    setActiveBuildType(null);
+    towerBuildMode = !towerBuildMode;
     updateBuildButtons();
   });
 
@@ -130,15 +151,21 @@ export function initResourceUI(onBuildClick?: () => void): void {
     commandAllSlaves('IDLE');
   });
 
-  // Keyboard Hotkeys: 'Digit1' (Wood), 'Digit2' (Stone), 'KeyB' (Place/Build)
+  // Keyboard Hotkeys: 'Digit1' (Wood), 'Digit2' (Stone), 'Digit3' (Tower), 'KeyB' (Build)
   window.addEventListener('keydown', e => {
     if (e.code === 'Digit1') {
+      towerBuildMode = false;
       const cur = getActiveBuildType();
       setActiveBuildType(cur === 'WOOD' ? null : 'WOOD');
       updateBuildButtons();
     } else if (e.code === 'Digit2') {
+      towerBuildMode = false;
       const cur = getActiveBuildType();
       setActiveBuildType(cur === 'STONE' ? null : 'STONE');
+      updateBuildButtons();
+    } else if (e.code === 'Digit3') {
+      setActiveBuildType(null);
+      towerBuildMode = !towerBuildMode;
       updateBuildButtons();
     } else if (e.code === 'KeyB') {
       onBuildClick?.();
@@ -149,5 +176,6 @@ export function initResourceUI(onBuildClick?: () => void): void {
     const type = getActiveBuildType();
     btnWood.style.outline = type === 'WOOD' ? '2px solid #22c55e' : 'none';
     btnStone.style.outline = type === 'STONE' ? '2px solid #22c55e' : 'none';
+    btnTower.style.outline = towerBuildMode ? '2px solid #3b82f6' : 'none';
   }
 }

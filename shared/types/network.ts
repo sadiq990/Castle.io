@@ -11,6 +11,7 @@ export type ClientToServerEvents = {
   playerAttack: () => void;
   buildFence: (data: { type: 'WOOD' | 'STONE'; position: Vector2; rotation: number }) => void;
   attackFence: (fenceId: string) => void;
+  buildTower: (position: Vector2) => void;
 };
 
 export type ServerToClientEvents = {
@@ -21,6 +22,7 @@ export type ServerToClientEvents = {
   fenceBuilt: (fence: FenceState) => void;
   fenceDamaged: (data: { fenceId: string; hp: number; damage: number }) => void;
   fenceDestroyed: (data: { fenceId: string; team: Team }) => void;
+  towerBuilt: (tower: any) => void;
 };
 
 export type InterServerEvents = Record<string, never>;

@@ -72,5 +72,60 @@ export function updatePlayer3D(
         glowMat.opacity = 0.0;
       }
     }
+
+    // ── Floating 3D HP Bar & Lives Above Player ───────────
+    let hpGroup = mesh.getObjectByName('hpGroup') as THREE.Group | undefined;
+    if (!hpGroup) {
+      hpGroup = new THREE.Group();
+      hpGroup.name = 'hpGroup';
+      hpGroup.position.y = 22;
+
+      // Dark background border
+      const bgBar = new THREE.Mesh(
+        new THREE.BoxGeometry(18, 2.8, 1.0),
+        new THREE.MeshBasicMaterial({ color: 0x0f172a })
+      );
+      hpGroup.add(bgBar);
+
+      // Green HP fill
+      const hpFill = new THREE.Mesh(
+        new THREE.BoxGeometry(17, 2.2, 1.2),
+        new THREE.MeshBasicMaterial({ color: 0x22c55e })
+      );
+      hpFill.name = 'hpFill';
+      hpGroup.add(hpFill);
+
+      // 2 Lives Hearts
+      for (let i = 0; i < 2; i++) {
+        const heart = new THREE.Mesh(
+          new THREE.SphereGeometry(1.6, 6, 6),
+          new THREE.MeshBasicMaterial({ color: 0xef4444 })
+        );
+        heart.name = `heart-${i}`;
+        heart.position.set(-3.5 + i * 7, 4.2, 0);
+        hpGroup.add(heart);
+      }
+
+      mesh.add(hpGroup);
+    }
+
+    // Update HP Fill scale
+    const hpRatio = Math.max(0, Math.min(1.0, (player.hp ?? 100) / (player.maxHp ?? 100)));
+    const hpFill = hpGroup.getObjectByName('hpFill') as THREE.Mesh | undefined;
+    if (hpFill) {
+      hpFill.scale.x = Math.max(0.01, hpRatio);
+      hpFill.position.x = -((1.0 - hpRatio) * 8.5);
+      const fillMat = hpFill.material as THREE.MeshBasicMaterial;
+      fillMat.color.setHex(hpRatio > 0.4 ? 0x22c55e : 0xef4444);
+    }
+
+    // Update Hearts based on lives
+    const lives = player.lives ?? 2;
+    for (let i = 0; i < 2; i++) {
+      const heart = hpGroup.getObjectByName(`heart-${i}`) as THREE.Mesh | undefined;
+      if (heart) {
+        heart.visible = i < lives;
+      }
+    }
   }
 }

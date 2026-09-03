@@ -36,3 +36,9 @@ export function handleAttackFence(socket: GameSocket, world: GameWorld, fenceId:
   if (!playerId) return;
   world.handleAttack(playerId);
 }
+
+export function handleBuildTower(socket: GameSocket, world: GameWorld, position: { x: number; y: number }): void {
+  const playerId = socket.data.playerId;
+  if (!playerId) return;
+  world.handleBuildTower(playerId, position);
+}

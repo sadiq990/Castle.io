@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../core/SceneManager.js';
 import type { FenceState, FenceType, Team, Vector2 } from 'shared/types/entities.js';
 import { getTerrainHeight } from '../terrain/TerrainGenerator.js';
@@ -152,25 +152,42 @@ export function attemptBuildFence(
     return false;
   }
 
-  // Place fence 45 units in front of player
-  const buildPos: Vector2 = {
+  // Place fence: Check for smart snapping to nearby friendly fence
+  let buildPos: Vector2 = {
     x: playerPos.x + Math.cos(playerFacing) * 45,
     y: playerPos.y + Math.sin(playerFacing) * 45,
   };
+  let rotation = -playerFacing + Math.PI / 2;
 
-  // Check overlap with existing fences (min 26 units)
+  // SMART AUTO-SNAP: Find nearest friendly unbroken fence to connect seamlessly!
+  let nearestFriendly: LocalFence | null = null;
+  let minSnapDist = 48;
+
   for (const f of fences.values()) {
-    if (!f.isBroken && Math.hypot(f.position.x - buildPos.x, f.position.y - buildPos.y) < 26) {
-      showCTFToast('❌ Burada artıq divar var!', '#EF4444');
-      return false;
+    if (!f.isBroken && f.team === team) {
+      const d = Math.hypot(f.position.x - buildPos.x, f.position.y - buildPos.y);
+      if (d < minSnapDist) {
+        minSnapDist = d;
+        nearestFriendly = f;
+      }
     }
+  }
+
+  if (nearestFriendly) {
+    // Snap to endpoint along neighbor's alignment
+    const snapDir = Math.atan2(buildPos.y - nearestFriendly.position.y, buildPos.x - nearestFriendly.position.x);
+    // Align with wall segment (30 units apart)
+    buildPos = {
+      x: nearestFriendly.position.x + Math.cos(snapDir) * 31,
+      y: nearestFriendly.position.y + Math.sin(snapDir) * 31,
+    };
+    rotation = nearestFriendly.rotation;
   }
 
   // Deduct resources
   deductPlayerResources(costWood, costStone);
 
   const id = `local-fence-${Date.now()}`;
-  const rotation = -playerFacing + Math.PI / 2;
   const maxHp = activeBuildType === 'WOOD' ? 30 : 100;
 
   const fenceData: LocalFence = {
@@ -196,7 +213,7 @@ export function attemptBuildFence(
     });
   }
 
-  showCTFToast(`🧱 ${activeBuildType === 'WOOD' ? 'Taxta hasar' : 'Daş divar'} ucaldıldı!`, '#10B981');
+  showCTFToast(`🧱 ${activeBuildType === 'WOOD' ? 'Taxta hasar' : 'Daş divar'} birləşdirildi!`, '#10B981');
   return true;
 }
 
@@ -230,7 +247,7 @@ export function checkFenceCollision(x: number, y: number, radius = 16): boolean 
   return false;
 }
 
-// Attack nearby opponent fence
+// Attack nearby opponent fence (Both teams can breach enemy fences!)
 export function attemptAttackFence(
   sceneManager: SceneManager,
   playerPos: Vector2,
@@ -252,13 +269,10 @@ export function attemptAttackFence(
 
   if (!closestFence) return false;
 
-  // STRICT REQUIREMENT: ONLY flag carriers can damage fences!
-  if (!hasFlag) {
-    showCTFToast('⚠️ Yalnız bayraq daşıyarkən divar dağıda bilərsiniz!', '#F59E0B');
-    return true; // Caught action
-  }
+  // Attack calculation: Flag carrier gets heavy bash bonus!
+  const baseDamage = closestFence.type === 'WOOD' ? 15 : 25;
+  const damage = hasFlag ? baseDamage * 1.5 : baseDamage;
 
-  const damage = closestFence.type === 'WOOD' ? 15 : 25;
   closestFence.hp = Math.max(0, closestFence.hp - damage);
   closestFence.shakeTime = 0.25;
 

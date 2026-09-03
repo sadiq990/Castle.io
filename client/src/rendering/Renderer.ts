@@ -20,6 +20,7 @@ import { drawMinimap } from '../ui/minimap.renderer.js';
 import { initResourceZones3D } from '../resources/ResourceManager.js';
 import { updateSlaves3D } from '../slaves/SlaveManager.js';
 import { updateFences3D, syncWorldFences } from '../fences/FenceManager.js';
+import { syncTowersAndArrows3D } from '../towers/TowerManager.js';
 
 let terrainInitialized = false;
 let lastRenderTime = 0;
@@ -75,6 +76,9 @@ export function renderFrame(
     syncWorldFences(sceneManager, state.fences);
   }
   updateFences3D(dt);
+
+  // 5. Archer Watchtowers & Flying Arrows
+  syncTowersAndArrows3D(sceneManager, state.towers, state.arrows);
 
   // 4. Lakes & Shorelines
   for (const water of state.waters) {

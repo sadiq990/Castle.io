@@ -7,7 +7,7 @@ import { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from 'shared/types/network.js';
 import { GameWorld } from '../world/GameWorld.js';
 import { addPlayer, removePlayer } from '../player/playerServer.js';
-import { handlePlayerMove, handlePlayerAttack, handleBuildFence, handleAttackFence } from './eventHandlers.js';
+import { handlePlayerMove, handlePlayerAttack, handleBuildFence, handleAttackFence, handleBuildTower } from './eventHandlers.js';
 
 export function createSocketServer(port: number): void {
   const httpServer = createServer();
@@ -48,6 +48,7 @@ export function createSocketServer(port: number): void {
       socket.on('playerAttack', () => handlePlayerAttack(socket, world));
       socket.on('buildFence', data => handleBuildFence(socket, world, data));
       socket.on('attackFence', fenceId => handleAttackFence(socket, world, fenceId));
+      socket.on('buildTower', pos => handleBuildTower(socket, world, pos));
     });
 
     socket.on('disconnect', () => {

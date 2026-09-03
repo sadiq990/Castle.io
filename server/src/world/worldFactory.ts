@@ -12,6 +12,8 @@ export function createInitialWorld(): GameWorldState {
     stones: SERVER_MAP_DATA.stones.map(s => ({ ...s, position: { ...s.position } })),
     castles: SERVER_MAP_DATA.castles.map(c => ({ ...c, position: { ...c.position } })),
     fences: {},
+    towers: {},
+    arrows: [],
     ctf: createInitialCTF(),
     mapSize: SERVER_MAP_DATA.mapSize,
   };

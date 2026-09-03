@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { MAP_CONFIG } from '../map/map.config.js';
 
 // ── FAST 2D NOISE IMPLEMENTATION (Deterministic Simplex Approximation) ─────
@@ -89,8 +89,22 @@ export function getTerrainHeight(x: number, z: number): number {
     }
   }
 
-  const totalHeight = Math.max(0.0, broadWaves + fineWaves + hillSwells);
-  return totalHeight * castleBlend;
+  // 5. Organic Map Perimeter & Jagged Mountain Cliffs (Organic, non-square boundary!)
+  const dx = x - 1500;
+  const dz = z - 1500;
+  const distFromCenter = Math.hypot(dx, dz);
+  const angle = Math.atan2(dz, dx);
+  // Multi-harmonic organic contour with jutting capes and bays
+  const organicBorder = 1320 + Math.sin(angle * 5.0) * 110 + Math.cos(angle * 3.0) * 85 + Math.sin(angle * 9.0) * 40;
+
+  let perimeterCliff = 0.0;
+  if (distFromCenter > organicBorder) {
+    const overflow = distFromCenter - organicBorder;
+    perimeterCliff = Math.min(140.0, Math.pow(overflow * 0.22, 1.45) + smoothNoise(x * 0.015, z * 0.015) * 25.0);
+  }
+
+  const baseHeight = Math.max(0.0, broadWaves + fineWaves + hillSwells) * castleBlend;
+  return baseHeight + perimeterCliff;
 }
 
 // ── SLOPE GRADIENT ────────────────────────────────────────────────────────
@@ -123,6 +137,8 @@ export function createTerrainMesh(mapSize: number): THREE.Mesh {
   const flatGrassColor = new THREE.Color(0x529b3e); // Lush base grass
   const slopeGrassColor = new THREE.Color(0x68b352); // Sunlit slope
   const hillRidgeColor = new THREE.Color(0x7ea36d); // Higher hill plateau
+  const cliffRockColor = new THREE.Color(0x475569); // Mountain cliff slate
+  const snowCapColor   = new THREE.Color(0xf1f5f9); // Snowy alpine peak
   const shoreSandColor = new THREE.Color(0xc2b080); // Lake shore sand
 
   for (let i = 0; i < count; i++) {
@@ -140,9 +156,13 @@ export function createTerrainMesh(mapSize: number): THREE.Mesh {
     if (h < 0.2) {
       // Near water shore
       vColor.lerp(shoreSandColor, Math.max(0.0, 1.0 - (h + 2.5) / 2.5));
+    } else if (h > 45.0) {
+      // High perimeter mountain cliffs & snowy peaks
+      const t = Math.min(1.0, (h - 45.0) / 45.0);
+      vColor.copy(cliffRockColor).lerp(snowCapColor, t);
     } else if (h > 18.0) {
-      // High hill ridges
-      const t = Math.min(1.0, (h - 18.0) / 22.0);
+      // Higher hill ridges
+      const t = Math.min(1.0, (h - 18.0) / 27.0);
       vColor.lerp(hillRidgeColor, t);
     } else {
       // Slopes get lighter sunlit green

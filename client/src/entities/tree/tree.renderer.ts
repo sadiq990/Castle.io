@@ -12,50 +12,108 @@ const FOLIAGE_COLORS = [
   0x286b2d, // Moss pine
 ];
 
-function createTreeMesh(treeId: string): THREE.Group {
+// 4 DISTINCT LOW-POLY TREE SPECIES
+function createTreeMesh(treeId: string, seed: number): THREE.Group {
   const group = new THREE.Group();
+  const speciesType = Math.abs(Math.floor(seed * 100)) % 4;
 
-  // Pick deterministic foliage color based on tree id
-  let hash = 0;
-  for (let i = 0; i < treeId.length; i++) {
-    hash = (hash * 31 + treeId.charCodeAt(i)) | 0;
+  if (speciesType === 0) {
+    // ── 1. NORDIC PINE (Klassik Şam Ağacı) ─────────────────────
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.5, 5.5, 24, 6),
+      new THREE.MeshStandardMaterial({ color: 0x452b1f, roughness: 0.9 })
+    );
+    trunk.position.y = 12;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const pineMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.8, flatShading: true });
+    const layers = [
+      { r: 24, h: 36, y: 30 },
+      { r: 19, h: 30, y: 44 },
+      { r: 13, h: 24, y: 56 },
+    ];
+    for (const l of layers) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(l.r, l.h, 6), pineMat);
+      cone.position.y = l.y;
+      cone.castShadow = true;
+      cone.receiveShadow = true;
+      group.add(cone);
+    }
+  } else if (speciesType === 1) {
+    // ── 2. BROADLEAF OAK (Genişyarpaqlı Zümrüd Palıd) ─────────
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(5.5, 8.0, 26, 7),
+      new THREE.MeshStandardMaterial({ color: 0x5c3d2e, roughness: 0.9 })
+    );
+    trunk.position.y = 13;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const oakMat1 = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8, flatShading: true });
+    const oakMat2 = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.8, flatShading: true });
+
+    // 4 Fluffy foliage clusters
+    const clusters = [
+      { r: 18, x: 0, y: 36, z: 0, mat: oakMat1 },
+      { r: 14, x: -10, y: 32, z: 8, mat: oakMat2 },
+      { r: 15, x: 9, y: 34, z: -6, mat: oakMat1 },
+      { r: 12, x: 0, y: 48, z: 0, mat: oakMat2 },
+    ];
+    for (const c of clusters) {
+      const sphere = new THREE.Mesh(new THREE.DodecahedronGeometry(c.r, 1), c.mat);
+      sphere.position.set(c.x, c.y, c.z);
+      sphere.scale.set(1.1, 0.9, 1.1);
+      sphere.castShadow = true;
+      sphere.receiveShadow = true;
+      group.add(sphere);
+    }
+  } else if (speciesType === 2) {
+    // ── 3. GOLDEN BIRCH (Qızılı Payız Ağcaqayını) ─────────────
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.0, 4.2, 32, 6),
+      new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7 }) // Pale birch bark
+    );
+    trunk.position.y = 16;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const autumnMat1 = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8, flatShading: true }); // Amber
+    const autumnMat2 = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.8, flatShading: true }); // Golden
+
+    const foliage1 = new THREE.Mesh(new THREE.DodecahedronGeometry(18, 1), autumnMat1);
+    foliage1.position.set(0, 40, 0);
+    foliage1.scale.set(0.9, 1.35, 0.9); // Upright oval canopy
+    foliage1.castShadow = true;
+    group.add(foliage1);
+
+    const foliage2 = new THREE.Mesh(new THREE.DodecahedronGeometry(13, 1), autumnMat2);
+    foliage2.position.set(4, 34, 4);
+    foliage2.castShadow = true;
+    group.add(foliage2);
+  } else {
+    // ── 4. WEEPING WILLOW (Göl Söyüdü / Zümrüd Park Ağacı) ────
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(4.5, 6.5, 22, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 })
+    );
+    trunk.position.y = 11;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const willowMat = new THREE.MeshStandardMaterial({ color: 0x34d399, roughness: 0.75, flatShading: true }); // Mint emerald
+    // Drooping layered dome
+    const dome1 = new THREE.Mesh(new THREE.ConeGeometry(24, 28, 7), willowMat);
+    dome1.position.y = 28;
+    dome1.scale.set(1.2, 0.8, 1.2);
+    dome1.castShadow = true;
+    group.add(dome1);
+
+    const dome2 = new THREE.Mesh(new THREE.ConeGeometry(17, 22, 7), willowMat);
+    dome2.position.y = 40;
+    dome2.castShadow = true;
+    group.add(dome2);
   }
-  const colorIndex = Math.abs(hash) % FOLIAGE_COLORS.length;
-  const leavesColor = FOLIAGE_COLORS[colorIndex];
-
-  // Trunk
-  const trunkGeo = new THREE.CylinderGeometry(4, 6, 22, 6);
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.92 });
-  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-  trunk.position.y = 11;
-  trunk.castShadow = true;
-  trunk.receiveShadow = true;
-  group.add(trunk);
-
-  // Pine foliage layers
-  const leavesMat = new THREE.MeshStandardMaterial({
-    color: leavesColor,
-    roughness: 0.82,
-    flatShading: true,
-  });
-
-  const layer1 = new THREE.Mesh(new THREE.ConeGeometry(25, 38, 6), leavesMat);
-  layer1.position.y = 30;
-  layer1.castShadow = true;
-  layer1.receiveShadow = true;
-  group.add(layer1);
-
-  const layer2 = new THREE.Mesh(new THREE.ConeGeometry(20, 32, 6), leavesMat);
-  layer2.position.y = 44;
-  layer2.castShadow = true;
-  layer2.receiveShadow = true;
-  group.add(layer2);
-
-  const layer3 = new THREE.Mesh(new THREE.ConeGeometry(14, 26, 6), leavesMat);
-  layer3.position.y = 57;
-  layer3.castShadow = true;
-  layer3.receiveShadow = true;
-  group.add(layer3);
 
   return group;
 }
@@ -65,13 +123,13 @@ export function updateTree3D(sceneManager: SceneManager, tree: TreeState): void 
   let mesh = sceneManager.meshes.get(meshId);
 
   if (!mesh) {
-    mesh = createTreeMesh(tree.id);
-    const y = getTerrainHeight(tree.position.x, tree.position.y);
-    mesh.position.set(tree.position.x, y, tree.position.y);
-
-    // Deterministic rotation & scale based on coordinates so it's stable
+    // Deterministic seed based on coordinates
     const seed = Math.sin(tree.position.x * 12.9898 + tree.position.y * 78.233) * 43758.5453;
     const norm = seed - Math.floor(seed);
+
+    mesh = createTreeMesh(tree.id, norm);
+    const y = getTerrainHeight(tree.position.x, tree.position.y);
+    mesh.position.set(tree.position.x, y, tree.position.y);
 
     mesh.rotation.y = norm * Math.PI * 2;
     const scale = 0.82 + norm * 0.42;

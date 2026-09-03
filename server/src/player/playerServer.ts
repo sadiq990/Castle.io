@@ -34,12 +34,60 @@ export function addPlayer(world: GameWorldState, id: string, name: string): Play
     hasFlag: false,
     speedMultiplier: 1.0,
     waterSpeedMultiplier: 1.0,
-    resources: { wood: 10, stone: 5 },
+    resources: { wood: 20, stone: 20 },
+    hp: 100,
+    maxHp: 100,
+    lives: 2,
     facing: 0,
   };
 
   world.players[id] = newPlayer;
   return newPlayer;
+}
+
+export function handlePlayerDeath(
+  world: GameWorldState,
+  victim: PlayerState,
+  killerTeam: Team,
+  notify: (data: { text: string; color: string }) => void
+): void {
+  // 1. Drop any carried flag
+  if (victim.hasFlag) {
+    victim.hasFlag = false;
+    victim.speedMultiplier = 1.0;
+    for (const flag of Object.values(world.ctf.flags)) {
+      if (flag.carrierId === victim.id) {
+        flag.status = 'DROPPED';
+        flag.carrierId = null;
+        flag.dropTimer = 30;
+      }
+    }
+  }
+
+  // 2. Decrement lives
+  victim.lives = Math.max(0, (victim.lives ?? 2) - 1);
+
+  if (victim.lives > 0) {
+    // Respawns at team castle!
+    const homeCastlePos = victim.team === 'blue' ? { x: 500, y: 500 } : { x: 2500, y: 2500 };
+    victim.position = {
+      x: homeCastlePos.x + (Math.random() - 0.5) * 60,
+      y: homeCastlePos.y + (Math.random() - 0.5) * 60,
+    };
+    victim.hp = 100;
+    notify({
+      text: `⚠️ ${victim.name || 'Oyunçu'} vuruldu və qalasında dirildi! (Son 1 canı qaldı)`,
+      color: '#F59E0B',
+    });
+  } else {
+    // FINAL DEATH: The other team wins!
+    world.ctf.winner = killerTeam;
+    const winnerName = killerTeam === 'blue' ? 'Mavi' : 'Qırmızı';
+    notify({
+      text: `🏆 ${winnerName} KOMANDASI QALİB GƏLDİ! Düşmən məhv edildi!`,
+      color: '#10B981',
+    });
+  }
 }
 
 export function removePlayer(world: GameWorldState, id: string): void {

@@ -10,6 +10,8 @@ import { createInitialWorld } from './worldFactory.js';
 import { applyMovementInput } from '../player/playerServer.js';
 import { updateCTF, handlePlayerAttack } from '../ctf/flagServer.js';
 import { buildFence, handleFenceAttack, updateFences } from '../fences/fenceServer.js';
+import { handlePlayerDeath } from '../player/playerServer.js';
+import { buildTower, updateTowersAndArrows } from '../towers/towerServer.js';
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -39,10 +41,40 @@ export class GameWorld {
     const player = this.state.players[playerId];
     if (!player) return;
 
-    // 1. Attack other players (knock flag)
-    handlePlayerAttack(this.state, playerId, (notif) => {
-      this.io.emit('flagNotification', notif);
-    });
+    // 1. Attack other players (Knock flag & deal 20 damage)
+    for (const target of Object.values(this.state.players)) {
+      if (target.id !== player.id && target.team !== player.team) {
+        const dist = Math.hypot(target.position.x - player.position.x, target.position.y - player.position.y);
+        if (dist <= 70) {
+          // Melee Hit!
+          target.hp = Math.max(0, (target.hp ?? 100) - 20);
+
+          // Knock flag out of target's hands immediately!
+          if (target.hasFlag) {
+            target.hasFlag = false;
+            target.speedMultiplier = 1.0;
+            for (const flag of Object.values(this.state.ctf.flags)) {
+              if (flag.carrierId === target.id) {
+                flag.status = 'DROPPED';
+                flag.carrierId = null;
+                flag.dropTimer = 30;
+              }
+            }
+            this.io.emit('flagNotification', {
+              text: `⚔️ Zərbə! ${player.name || 'Oyunçu'} ${target.name || 'Düşmən'}dən bayrağı yerə saldı!`,
+              color: '#EF4444',
+            });
+          }
+
+          if (target.hp <= 0) {
+            handlePlayerDeath(this.state, target, player.team, (notif) => {
+              this.io.emit('flagNotification', notif);
+            });
+          }
+          break;
+        }
+      }
+    }
 
     // 2. Attack nearby opponent fence
     if (this.state.fences) {
@@ -73,6 +105,21 @@ export class GameWorld {
     const fence = buildFence(this.state, player, data.type, data.position, data.rotation);
     if (fence) {
       this.io.emit('fenceBuilt', fence);
+    }
+  }
+
+  handleBuildTower(playerId: string, position: { x: number; y: number }): void {
+    const player = this.state.players[playerId];
+    if (!player) return;
+
+    const tower = buildTower(this.state, player, position);
+    if (tower) {
+      this.io.emit('towerBuilt', tower);
+      const teamName = tower.team === 'blue' ? 'Mavi' : 'Qırmızı';
+      this.io.emit('flagNotification', {
+        text: `🏹 ${teamName} komandası Oxatan Qülləsi ucaltdı!`,
+        color: tower.team === 'blue' ? '#3B82F6' : '#EF4444',
+      });
     }
   }
 
@@ -108,7 +155,18 @@ export class GameWorld {
     // 3. Update Fences (cleanup broken after 60s)
     updateFences(this.state);
 
-    // 4. Broadcast snapshot to all clients
+    // 4. Update Archer Towers & Flying Arrows
+    updateTowersAndArrows(
+      this.state,
+      dt,
+      now,
+      (notif) => this.io.emit('flagNotification', notif),
+      (victim, killerTeam) => {
+        handlePlayerDeath(this.state, victim, killerTeam, (notif) => this.io.emit('flagNotification', notif));
+      }
+    );
+
+    // 5. Broadcast snapshot to all clients
     this.io.emit('worldState', this.state);
   }
 }
