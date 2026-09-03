@@ -1,9 +1,9 @@
-﻿import type { ArrowState, GameWorldState, PlayerState, Team, TowerState, Vector2 } from 'shared/types/entities.js';
+import type { ArrowState, GameWorldState, PlayerState, Team, TowerState, Vector2 } from 'shared/types/entities.js';
 
 let nextTowerId = 1;
 let nextArrowId = 1;
 
-export const TOWER_COST = { wood: 15, stone: 15 };
+export const TOWER_COST = { wood: 10, stone: 10 };
 
 export function canBuildTower(
   world: GameWorldState,
@@ -12,12 +12,12 @@ export function canBuildTower(
 ): { success: boolean; reason?: string } {
   const res = player.resources ?? { wood: 0, stone: 0 };
   if (res.wood < TOWER_COST.wood || res.stone < TOWER_COST.stone) {
-    return { success: false, reason: 'Kifayət qədər resurs yoxdur! (15 Odun, 15 Daş lazımdır)' };
+    return { success: false, reason: 'Kifayət qədər resurs yoxdur! (10 Odun, 10 Daş lazımdır)' };
   }
 
-  // Check overlap with existing towers (min 50 units)
+  // Check overlap with existing towers (min 35 units)
   for (const t of Object.values(world.towers)) {
-    if (!t.isDestroyed && Math.hypot(t.position.x - pos.x, t.position.y - pos.y) < 50) {
+    if (!t.isDestroyed && Math.hypot(t.position.x - pos.x, t.position.y - pos.y) < 35) {
       return { success: false, reason: 'Burada artıq qüllə var!' };
     }
   }

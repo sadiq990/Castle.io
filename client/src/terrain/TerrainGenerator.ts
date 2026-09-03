@@ -89,7 +89,7 @@ export function getTerrainHeight(x: number, z: number): number {
     }
   }
 
-  // 5. Organic Map Perimeter & Jagged Mountain Cliffs (Organic, non-square boundary!)
+  // 5. Organic Map Perimeter (Natural rounded hill ridge, not giant white cliffs)
   const dx = x - 1500;
   const dz = z - 1500;
   const distFromCenter = Math.hypot(dx, dz);
@@ -100,7 +100,8 @@ export function getTerrainHeight(x: number, z: number): number {
   let perimeterCliff = 0.0;
   if (distFromCenter > organicBorder) {
     const overflow = distFromCenter - organicBorder;
-    perimeterCliff = Math.min(140.0, Math.pow(overflow * 0.22, 1.45) + smoothNoise(x * 0.015, z * 0.015) * 25.0);
+    // Gentle rounded grassy/earth hill slope, max 42 units
+    perimeterCliff = Math.min(42.0, overflow * 0.22 + smoothNoise(x * 0.015, z * 0.015) * 8.0);
   }
 
   const baseHeight = Math.max(0.0, broadWaves + fineWaves + hillSwells) * castleBlend;
@@ -131,15 +132,15 @@ export function createTerrainMesh(mapSize: number): THREE.Mesh {
   const pos = geo.attributes.position;
   const count = pos.count;
 
-  // Vertex Colors: Rich pastel fantasy palette
+  // Vertex Colors: Natural earthy greens and warm rock (NO white/cloudy snow!)
   const colors = new Float32Array(count * 3);
 
-  const flatGrassColor = new THREE.Color(0x529b3e); // Lush base grass
-  const slopeGrassColor = new THREE.Color(0x68b352); // Sunlit slope
-  const hillRidgeColor = new THREE.Color(0x7ea36d); // Higher hill plateau
-  const cliffRockColor = new THREE.Color(0x475569); // Mountain cliff slate
-  const snowCapColor   = new THREE.Color(0xf1f5f9); // Snowy alpine peak
-  const shoreSandColor = new THREE.Color(0xc2b080); // Lake shore sand
+  const flatGrassColor  = new THREE.Color(0x4d8e37); // Lush base grass
+  const slopeGrassColor = new THREE.Color(0x5ea63f); // Sunlit slope
+  const hillRidgeColor  = new THREE.Color(0x6b9e4a); // Rounded hill top
+  const cliffEarthColor = new THREE.Color(0x5c503d); // Warm earthy rock
+  const deepSlateColor  = new THREE.Color(0x454035); // Dark mossy stone
+  const shoreSandColor  = new THREE.Color(0xc2b080); // Lake shore sand
 
   for (let i = 0; i < count; i++) {
     const x = pos.getX(i);
@@ -156,13 +157,13 @@ export function createTerrainMesh(mapSize: number): THREE.Mesh {
     if (h < 0.2) {
       // Near water shore
       vColor.lerp(shoreSandColor, Math.max(0.0, 1.0 - (h + 2.5) / 2.5));
-    } else if (h > 45.0) {
-      // High perimeter mountain cliffs & snowy peaks
-      const t = Math.min(1.0, (h - 45.0) / 45.0);
-      vColor.copy(cliffRockColor).lerp(snowCapColor, t);
-    } else if (h > 18.0) {
-      // Higher hill ridges
-      const t = Math.min(1.0, (h - 18.0) / 27.0);
+    } else if (h > 30.0) {
+      // High hill crests: warm rock & slate (NO WHITE / CLOUDY SNOW)
+      const t = Math.min(1.0, (h - 30.0) / 12.0);
+      vColor.copy(hillRidgeColor).lerp(cliffEarthColor, t * 0.8).lerp(deepSlateColor, t * 0.4);
+    } else if (h > 15.0) {
+      // Swelling hills & mounds: golden olive green
+      const t = Math.min(1.0, (h - 15.0) / 15.0);
       vColor.lerp(hillRidgeColor, t);
     } else {
       // Slopes get lighter sunlit green

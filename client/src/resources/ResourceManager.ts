@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../core/SceneManager.js';
 import type { Team, Vector2 } from 'shared/types/entities.js';
 import { getTerrainHeight } from '../terrain/TerrainGenerator.js';
@@ -61,8 +61,8 @@ export const RESOURCE_ZONES: ResourceZone[] = [
   },
 ];
 
-// Local Player Resource State
-let playerResources = { wood: 15, stone: 10 };
+// Local Player Resource State (Comfortable starting amount to build defenses and towers immediately)
+let playerResources = { wood: 40, stone: 30 };
 const changeListeners = new Set<(res: { wood: number; stone: number }) => void>();
 
 export function getPlayerResources(): { wood: number; stone: number } {

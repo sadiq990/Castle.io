@@ -75,7 +75,7 @@ export function initResourceUI(onBuildClick?: () => void): void {
         🪨 Daş (10)
       </button>
       <button id="btn-build-tower" style="flex: 1.2; padding: 6px 2px; background: #1e3a8a; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;">
-        🏹 Qüllə (15+15)
+        🏹 Qüllə (10+10)
       </button>
     </div>
 
@@ -94,10 +94,15 @@ export function initResourceUI(onBuildClick?: () => void): void {
       </button>
     </div>
     <div style="font-size: 10px; color: #64748b; margin-top: 4px; text-align: center;">
-      Qısa yol: [1] Taxta, [2] Daş, [3] Qüllə, [B] Tik
+      Qısa yol: [1] Taxta, [2] Daş, [3] Qüllə, [B / Klik] Tik, [ESC] İmtina
     </div>
   `;
   document.body.appendChild(buildPanelEl);
+
+  // Stop UI clicks from propagating into game world click/attack
+  buildPanelEl.addEventListener('mousedown', e => e.stopPropagation());
+  buildPanelEl.addEventListener('pointerdown', e => e.stopPropagation());
+  buildPanelEl.addEventListener('click', e => e.stopPropagation());
 
   // Wire Resource State Updates
   onResourceChange(res => {
@@ -166,16 +171,39 @@ export function initResourceUI(onBuildClick?: () => void): void {
     } else if (e.code === 'Digit3') {
       setActiveBuildType(null);
       towerBuildMode = !towerBuildMode;
-      updateBuildButtons();
+    } else if (e.code === 'Escape') {
+      clearBuildMode();
     } else if (e.code === 'KeyB') {
       onBuildClick?.();
     }
   });
 
-  function updateBuildButtons() {
-    const type = getActiveBuildType();
-    btnWood.style.outline = type === 'WOOD' ? '2px solid #22c55e' : 'none';
-    btnStone.style.outline = type === 'STONE' ? '2px solid #22c55e' : 'none';
-    btnTower.style.outline = towerBuildMode ? '2px solid #3b82f6' : 'none';
-  }
+  // Right-click to cancel build mode
+  window.addEventListener('contextmenu', e => {
+    if (getActiveBuildType() || towerBuildMode) {
+      e.preventDefault();
+      clearBuildMode();
+    }
+  });
+}
+
+export function clearBuildMode(): void {
+  setActiveBuildType(null);
+  towerBuildMode = false;
+  const btnWood = document.getElementById('btn-build-wood');
+  const btnStone = document.getElementById('btn-build-stone');
+  const btnTower = document.getElementById('btn-build-tower');
+  if (btnWood) btnWood.style.outline = 'none';
+  if (btnStone) btnStone.style.outline = 'none';
+  if (btnTower) btnTower.style.outline = 'none';
+}
+
+export function updateBuildButtons(): void {
+  const type = getActiveBuildType();
+  const btnWood = document.getElementById('btn-build-wood');
+  const btnStone = document.getElementById('btn-build-stone');
+  const btnTower = document.getElementById('btn-build-tower');
+  if (btnWood) btnWood.style.outline = type === 'WOOD' ? '2px solid #22c55e' : 'none';
+  if (btnStone) btnStone.style.outline = type === 'STONE' ? '2px solid #22c55e' : 'none';
+  if (btnTower) btnTower.style.outline = towerBuildMode ? '2px solid #3b82f6' : 'none';
 }

@@ -1,4 +1,4 @@
-﻿// Keyboard and mouse input handler for the local player.
+// Keyboard and mouse input handler for the local player.
 // Converts key state into a normalized movement vector and attack actions.
 
 import type { MovementInput } from 'shared/types/network.js';
@@ -27,13 +27,6 @@ export function initLocalPlayerController(onAttack?: () => void): void {
     if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
     if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
     if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
-  });
-
-  // Left mouse click to attack
-  window.addEventListener('mousedown', e => {
-    if (e.button === 0) { // Primary / Left button
-      attackCallback?.();
-    }
   });
 }
 

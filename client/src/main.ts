@@ -13,7 +13,7 @@ import { MAP_CONFIG } from './map/map.config.js';
 import { initFlagUI, updateFlagUI, showCTFToast } from './ui/flagUI.js';
 import { initResourceUI, isTowerBuildMode } from './ui/resourceUI.js';
 import { initSlaves } from './slaves/SlaveManager.js';
-import { attemptBuildFence, attemptAttackFence, setSceneManagerForFences, getActiveBuildType } from './fences/FenceManager.js';
+import { attemptBuildFenceAt, attemptAttackFence, setSceneManagerForFences, getActiveBuildType, updateGhostPreview } from './fences/FenceManager.js';
 import { attemptBuildTower } from './towers/TowerManager.js';
 
 // ─── DOM REFS ────────────────────────────────────────────────
@@ -34,17 +34,54 @@ initFlagUI();
 
 // Initialize Fence Manager & Resource UI
 setSceneManagerForFences(sceneManager);
+
+let mouseScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+window.addEventListener('mousemove', e => {
+  mouseScreen.x = e.clientX;
+  mouseScreen.y = e.clientY;
+});
+
 const handleBuild = () => {
   const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
   if (!myPlayer) return;
 
+  const hit = sceneManager.getGroundIntersection(mouseScreen.x, mouseScreen.y);
+  const targetPos = hit ? { x: hit.x, y: hit.z } : {
+    x: myPlayer.position.x + Math.cos(myPlayer.facing ?? 0) * 45,
+    y: myPlayer.position.y + Math.sin(myPlayer.facing ?? 0) * 45,
+  };
+
   if (isTowerBuildMode()) {
-    attemptBuildTower(sceneManager, myPlayer.position, myPlayer.facing ?? 0, myPlayer.team);
+    attemptBuildTower(sceneManager, targetPos, myPlayer.team);
   } else if (getActiveBuildType()) {
-    attemptBuildFence(sceneManager, myPlayer.position, myPlayer.facing ?? 0, myPlayer.team);
+    attemptBuildFenceAt(sceneManager, targetPos, myPlayer.team);
   }
 };
 initResourceUI(handleBuild);
+
+// Canvas Direct Left-Click Handler (Build at cursor OR Attack in game)
+const gameCanvas = document.getElementById('game-canvas');
+gameCanvas?.addEventListener('mousedown', (e) => {
+  if (e.button === 0) { // Primary / Left Click
+    const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
+    if (!myPlayer) return;
+
+    const hit = sceneManager.getGroundIntersection(e.clientX, e.clientY);
+    const clickGroundPos = hit ? { x: hit.x, y: hit.z } : null;
+
+    if (isTowerBuildMode() && clickGroundPos) {
+      attemptBuildTower(sceneManager, clickGroundPos, myPlayer.team);
+      return;
+    } else if (getActiveBuildType() && clickGroundPos) {
+      attemptBuildFenceAt(sceneManager, clickGroundPos, myPlayer.team);
+      return;
+    }
+
+    // Normal In-Game Attack (hit enemy fence, knock enemy flag)
+    attemptAttackFence(sceneManager, myPlayer.position, myPlayer.team, myPlayer.hasFlag);
+    socket.emit('playerAttack');
+  }
+});
 
 // Load static map objects
 const mapObjects = createMapObjects();
@@ -60,21 +97,13 @@ state.mapSize   = MAP_CONFIG.mapSize;
 // ─── SOCKET ──────────────────────────────────────────────────
 const socket = connectToServer();
 
-// ─── INPUT (Movement & Attack) ───────────────────────────────
+// ─── INPUT (Movement & Spacebar Attack) ───────────────────────
 initLocalPlayerController(() => {
   const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
   if (!myPlayer) return;
 
-  // 1. If in Build Mode (Tower or Fence) -> Build!
-  if (isTowerBuildMode() || getActiveBuildType()) {
-    handleBuild();
-    return;
-  }
-
-  // 2. Attack opponent fence if in range
+  // Spacebar Attack
   attemptAttackFence(sceneManager, myPlayer.position, myPlayer.team, myPlayer.hasFlag);
-
-  // 3. Attack other players (knock flag & deal melee damage)
   socket.emit('playerAttack');
 });
 
@@ -145,6 +174,12 @@ const loop = createGameLoop((dt) => {
     const myPlayer = myId ? state.players[myId] : undefined;
     if (myPlayer) sceneManager.setCameraTarget(myPlayer.position);
   }
+
+  // Live Holographic Ghost Preview on Ground
+  const groundHit = sceneManager.getGroundIntersection(mouseScreen.x, mouseScreen.y);
+  const mouseGroundPos = groundHit ? { x: groundHit.x, y: groundHit.z } : null;
+  const myP = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
+  updateGhostPreview(sceneManager, mouseGroundPos, myP?.team ?? 'blue', isTowerBuildMode());
 
   // Render 3D World & UI
   renderFrame(sceneManager, state, uiCtx, globalTime);

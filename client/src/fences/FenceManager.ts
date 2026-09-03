@@ -135,10 +135,121 @@ function spawnDebrisParticles(scene: THREE.Scene, pos: Vector2, isWood: boolean)
 }
 
 // ── BUILD ATTEMPT ─────────────────────────────────────────────────
-export function attemptBuildFence(
+// ── SMART SNAPPING CALCULATION ────────────────────────────────────
+export function getSnappedFencePlacement(
+  mouseWorldPos: Vector2,
+  team: Team
+): { position: Vector2; rotation: number; isSnapped: boolean } {
+  let nearestFriendly: LocalFence | null = null;
+  let minSnapDist = 48;
+
+  for (const f of fences.values()) {
+    if (!f.isBroken && f.team === team) {
+      const d = Math.hypot(f.position.x - mouseWorldPos.x, f.position.y - mouseWorldPos.y);
+      if (d < minSnapDist) {
+        minSnapDist = d;
+        nearestFriendly = f;
+      }
+    }
+  }
+
+  if (nearestFriendly) {
+    const snapDir = Math.atan2(mouseWorldPos.y - nearestFriendly.position.y, mouseWorldPos.x - nearestFriendly.position.x);
+    // Align with wall segment (31 units apart)
+    return {
+      position: {
+        x: nearestFriendly.position.x + Math.cos(snapDir) * 31,
+        y: nearestFriendly.position.y + Math.sin(snapDir) * 31,
+      },
+      rotation: nearestFriendly.rotation,
+      isSnapped: true,
+    };
+  }
+
+  return {
+    position: { ...mouseWorldPos },
+    rotation: 0,
+    isSnapped: false,
+  };
+}
+
+// ── LIVE HOLOGRAPHIC GHOST PREVIEW ────────────────────────────────
+let currentGhostType: string | null = null;
+
+export function updateGhostPreview(
   sceneManager: SceneManager,
-  playerPos: Vector2,
-  playerFacing: number,
+  targetPos: Vector2 | null,
+  team: Team,
+  isTower: boolean
+): void {
+  const buildType = isTower ? 'TOWER' : activeBuildType;
+
+  if (!buildType || !targetPos) {
+    if (ghostMesh) ghostMesh.visible = false;
+    return;
+  }
+
+  if (!ghostMesh || currentGhostType !== buildType) {
+    if (ghostMesh) sceneManager.scene.remove(ghostMesh);
+
+    if (buildType === 'WOOD') {
+      ghostMesh = createWoodFenceMesh();
+    } else if (buildType === 'STONE') {
+      ghostMesh = createStoneFenceMesh();
+    } else {
+      // Tower
+      const baseGeo = new THREE.CylinderGeometry(8.5, 12.5, 48, 8);
+      const baseMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, wireframe: true });
+      ghostMesh = new THREE.Group();
+      const m = new THREE.Mesh(baseGeo, baseMat);
+      m.position.y = 24;
+      ghostMesh.add(m);
+    }
+
+    currentGhostType = buildType;
+    sceneManager.scene.add(ghostMesh);
+  }
+
+  // Calculate Snapped Position for Fences
+  let placePos = targetPos;
+  let rotation = 0;
+
+  if (buildType !== 'TOWER') {
+    const snap = getSnappedFencePlacement(targetPos, team);
+    placePos = snap.position;
+    rotation = snap.rotation;
+  }
+
+  const res = getPlayerResources();
+  let affordable = false;
+  if (buildType === 'WOOD') affordable = res.wood >= 5;
+  else if (buildType === 'STONE') affordable = res.stone >= 10;
+  else if (buildType === 'TOWER') affordable = res.wood >= 10 && res.stone >= 10;
+
+  ghostMesh.visible = true;
+  const groundY = getTerrainHeight(placePos.x, placePos.y);
+  ghostMesh.position.set(placePos.x, groundY, placePos.y);
+  ghostMesh.rotation.y = rotation;
+
+  // Tint ghost green (affordable) or red (unaffordable)
+  const tintColor = affordable ? (buildType === 'TOWER' ? 0x3b82f6 : 0x22c55e) : 0xef4444;
+  ghostMesh.traverse(child => {
+    if (child instanceof THREE.Mesh) {
+      if (!child.userData['origMat']) child.userData['origMat'] = child.material;
+      child.material = new THREE.MeshBasicMaterial({
+        color: tintColor,
+        transparent: true,
+        opacity: 0.55,
+        wireframe: false,
+      });
+    }
+  });
+}
+
+// ── BUILD AT POSITION ─────────────────────────────────────────────
+export function attemptBuildFenceAt(
+  sceneManager: SceneManager,
+  targetPos: Vector2,
   team: Team
 ): boolean {
   if (!activeBuildType) return false;
@@ -152,36 +263,16 @@ export function attemptBuildFence(
     return false;
   }
 
-  // Place fence: Check for smart snapping to nearby friendly fence
-  let buildPos: Vector2 = {
-    x: playerPos.x + Math.cos(playerFacing) * 45,
-    y: playerPos.y + Math.sin(playerFacing) * 45,
-  };
-  let rotation = -playerFacing + Math.PI / 2;
+  const snap = getSnappedFencePlacement(targetPos, team);
+  const buildPos = snap.position;
+  const rotation = snap.rotation;
 
-  // SMART AUTO-SNAP: Find nearest friendly unbroken fence to connect seamlessly!
-  let nearestFriendly: LocalFence | null = null;
-  let minSnapDist = 48;
-
+  // Check overlap with existing fences (min 22 units)
   for (const f of fences.values()) {
-    if (!f.isBroken && f.team === team) {
-      const d = Math.hypot(f.position.x - buildPos.x, f.position.y - buildPos.y);
-      if (d < minSnapDist) {
-        minSnapDist = d;
-        nearestFriendly = f;
-      }
+    if (!f.isBroken && Math.hypot(f.position.x - buildPos.x, f.position.y - buildPos.y) < 22) {
+      showCTFToast('❌ Burada artıq divar var!', '#EF4444');
+      return false;
     }
-  }
-
-  if (nearestFriendly) {
-    // Snap to endpoint along neighbor's alignment
-    const snapDir = Math.atan2(buildPos.y - nearestFriendly.position.y, buildPos.x - nearestFriendly.position.x);
-    // Align with wall segment (30 units apart)
-    buildPos = {
-      x: nearestFriendly.position.x + Math.cos(snapDir) * 31,
-      y: nearestFriendly.position.y + Math.sin(snapDir) * 31,
-    };
-    rotation = nearestFriendly.rotation;
   }
 
   // Deduct resources

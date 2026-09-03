@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../core/SceneManager.js';
 import type { ArrowState, Team, TowerState, Vector2 } from 'shared/types/entities.js';
 import { getTerrainHeight } from '../terrain/TerrainGenerator.js';
@@ -132,30 +132,50 @@ function createArrowMesh(): THREE.Group {
 // ── BUILD ATTEMPT ────────────────────────────────────────────────
 export function attemptBuildTower(
   sceneManager: SceneManager,
-  playerPos: Vector2,
-  playerFacing: number,
+  targetPos: Vector2,
   team: Team
 ): boolean {
   const res = getPlayerResources();
-  if (res.wood < 15 || res.stone < 15) {
-    showCTFToast('❌ Qüllə üçün 15 Odun və 15 Daş lazımdır!', '#EF4444');
+  if (res.wood < 10 || res.stone < 10) {
+    showCTFToast('❌ Qüllə üçün 10 Odun və 10 Daş lazımdır!', '#EF4444');
     return false;
   }
 
-  const buildPos: Vector2 = {
-    x: playerPos.x + Math.cos(playerFacing) * 55,
-    y: playerPos.y + Math.sin(playerFacing) * 55,
-  };
+  // Check overlap with existing towers (min 35 units)
+  for (const t of towers.values()) {
+    if (!t.isDestroyed && Math.hypot(t.position.x - targetPos.x, t.position.y - targetPos.y) < 35) {
+      showCTFToast('❌ Burada artıq qüllə var!', '#EF4444');
+      return false;
+    }
+  }
 
   // Deduct
-  deductPlayerResources(15, 15);
+  deductPlayerResources(10, 10);
+
+  const localId = `local-tower-${Date.now()}`;
+  const mesh = createWatchtowerMesh(team);
+  const y = getTerrainHeight(targetPos.x, targetPos.y);
+  mesh.position.set(targetPos.x, y, targetPos.y);
+  sceneManager.scene.add(mesh);
+
+  towers.set(localId, {
+    id: localId,
+    team,
+    position: { ...targetPos },
+    hp: 120,
+    maxHp: 120,
+    lastFireTime: 0,
+    range: 220,
+    isDestroyed: false,
+    mesh,
+  });
 
   const socket = getSocket();
   if (socket?.connected) {
-    socket.emit('buildTower', buildPos);
+    socket.emit('buildTower', targetPos);
   }
 
-  showCTFToast('🏹 Oxatan Qülləsi tikildi!', '#10B981');
+  showCTFToast('🏹 Oxatan Qülləsi ucaldıldı!', '#10B981');
   return true;
 }
 

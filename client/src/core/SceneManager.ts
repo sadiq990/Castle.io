@@ -23,7 +23,7 @@ export class SceneManager {
     this.scene = new THREE.Scene();
     const skyColor = new THREE.Color(0xa2d2e8); // Serene pastel fantasy sky
     this.scene.background = skyColor; 
-    this.scene.fog = new THREE.Fog(0xa2d2e8, 950, 2700);
+    this.scene.fog = new THREE.Fog(0xa2d2e8, 1800, 4800); // Clear atmosphere without white fogging on hills
 
     this.camera = new THREE.PerspectiveCamera(50, this.width / this.height, 1, 5000);
     this.camera.position.set(0, 1000, 800); 
@@ -64,6 +64,19 @@ export class SceneManager {
     this.camera.position.z = target.y + camOffsetZ;
 
     this.camera.lookAt(target.x, 0, target.y);
+  }
+
+  public getGroundIntersection(screenX: number, screenY: number): THREE.Vector3 | null {
+    const mouse = new THREE.Vector2(
+      (screenX / this.width) * 2 - 1,
+      -(screenY / this.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const target = new THREE.Vector3();
+    const hit = raycaster.ray.intersectPlane(plane, target);
+    return hit;
   }
 
   public render() {

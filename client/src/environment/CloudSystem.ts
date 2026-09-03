@@ -51,7 +51,7 @@ export function initClouds(sceneManager: SceneManager, mapSize: number): void {
     const cloudMesh = createSingleCloud();
 
     const x = Math.random() * mapSize;
-    const y = 290 + Math.random() * 90; // Floating high above terrain
+    const y = 700 + Math.random() * 120; // High in the sky, never obscuring ground or hills
     const z = Math.random() * mapSize;
     cloudMesh.position.set(x, y, z);
 
