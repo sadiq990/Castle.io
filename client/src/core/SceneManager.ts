@@ -21,8 +21,9 @@ export class SceneManager {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); 
-    this.scene.fog = new THREE.Fog(0x87CEEB, 1000, 3000);
+    const skyColor = new THREE.Color(0xa2d2e8); // Serene pastel fantasy sky
+    this.scene.background = skyColor; 
+    this.scene.fog = new THREE.Fog(0xa2d2e8, 950, 2700);
 
     this.camera = new THREE.PerspectiveCamera(50, this.width / this.height, 1, 5000);
     this.camera.position.set(0, 1000, 800); 
