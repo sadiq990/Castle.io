@@ -51,9 +51,9 @@ function createFlagMesh(team: Team): THREE.Group {
   group.add(ball);
 
   // 2. Triangular Waving Cloth Banner
-  // 40 width, 24 height triangular shape
+  // 38 width, 24 height triangular shape
   const clothGeo = new THREE.PlaneGeometry(38, 24, 12, 8);
-  // Shift pivot to the left pole edge
+  // Shift pivot so left edge begins exactly at x = 0
   clothGeo.translate(19, 0, 0);
 
   const clothMat = new THREE.ShaderMaterial({
@@ -69,9 +69,24 @@ function createFlagMesh(team: Team): THREE.Group {
 
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.name = 'cloth';
-  cloth.position.set(0, 46, 0);
+  // Flush with the outer surface of the 2.0 radius pole
+  cloth.position.set(2.0, 46, 0);
   cloth.castShadow = true;
   group.add(cloth);
+
+  // 3. Metallic Attachment Clips (Rings binding cloth to flagpole)
+  const clipMat = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    metalness: 0.85,
+    roughness: 0.25,
+  });
+  const clipHeights = [35, 46, 57];
+  for (const ch of clipHeights) {
+    const ringGeo = new THREE.CylinderGeometry(2.8, 2.8, 1.8, 12);
+    const ring = new THREE.Mesh(ringGeo, clipMat);
+    ring.position.set(0, ch, 0);
+    group.add(ring);
+  }
 
   // 3. Ground Pulsing Halo Ring (used when DROPPED)
   const ringGeo = new THREE.RingGeometry(18, 24, 32);
@@ -120,7 +135,8 @@ export function updateFlag3D(
   if (flag.status === 'AT_HOME') {
     mesh.visible = true;
     mesh.scale.set(1.1, 1.1, 1.1);
-    const homeY = getTerrainHeight(flag.homePosition.x, flag.homePosition.y) + 150;
+    // Planted firmly on the central castle keep roof (roof is at y = 110)
+    const homeY = getTerrainHeight(flag.homePosition.x, flag.homePosition.y) + 110;
     mesh.position.set(flag.homePosition.x, homeY, flag.homePosition.y);
     mesh.rotation.set(0, 0, 0);
 
