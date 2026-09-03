@@ -20,3 +20,19 @@ export function handlePlayerAttack(socket: GameSocket, world: GameWorld): void {
   if (!playerId) return;
   world.handleAttack(playerId);
 }
+
+export function handleBuildFence(
+  socket: GameSocket,
+  world: GameWorld,
+  data: { type: 'WOOD' | 'STONE'; position: { x: number; y: number }; rotation: number }
+): void {
+  const playerId = socket.data.playerId;
+  if (!playerId) return;
+  world.handleBuildFence(playerId, data);
+}
+
+export function handleAttackFence(socket: GameSocket, world: GameWorld, fenceId: string): void {
+  const playerId = socket.data.playerId;
+  if (!playerId) return;
+  world.handleAttack(playerId);
+}

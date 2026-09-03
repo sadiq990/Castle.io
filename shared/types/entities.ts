@@ -1,4 +1,4 @@
-﻿// Shared entity types — read by both client and server
+// Shared entity types — read by both client and server
 // These are the canonical data contracts. Never import client or server code here.
 
 export interface Vector2 {
@@ -8,6 +8,25 @@ export interface Vector2 {
 
 export type Team = 'blue' | 'red';
 
+export type FenceType = 'WOOD' | 'STONE';
+
+export interface FenceState {
+  id: string;
+  type: FenceType;
+  team: Team;
+  position: Vector2;
+  rotation: number;
+  hp: number;
+  maxHp: number;
+  isBroken: boolean;
+  brokenAt?: number;
+}
+
+export interface PlayerResources {
+  wood: number;
+  stone: number;
+}
+
 export interface PlayerState {
   id: string;
   name: string;
@@ -16,6 +35,8 @@ export interface PlayerState {
   team: Team;
   hasFlag: boolean;
   speedMultiplier: number;
+  waterSpeedMultiplier?: number;
+  resources?: PlayerResources;
   /** Direction the player is facing, in radians. 0 = right. */
   facing: number;
 }
@@ -59,6 +80,7 @@ export interface GameWorldState {
   trees: TreeState[];
   stones: StoneState[];
   castles: CastleState[];
+  fences: Record<string, FenceState>;
   ctf: CTFState;
   mapSize: number;
 }

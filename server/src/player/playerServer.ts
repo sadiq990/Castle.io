@@ -1,4 +1,4 @@
-﻿// Server-side player lifecycle: join, leave, move.
+// Server-side player lifecycle: join, leave, move.
 // All player state mutations happen here.
 
 import type { PlayerState, GameWorldState, Team, Vector2 } from 'shared/types/entities.js';
@@ -33,6 +33,8 @@ export function addPlayer(world: GameWorldState, id: string, name: string): Play
     team,
     hasFlag: false,
     speedMultiplier: 1.0,
+    waterSpeedMultiplier: 1.0,
+    resources: { wood: 10, stone: 5 },
     facing: 0,
   };
 
@@ -56,6 +58,11 @@ export function removePlayer(world: GameWorldState, id: string): void {
   delete world.players[id];
 }
 
+const WATER_LAKES = [
+  { x: 950, y: 1150, radius: 250 },
+  { x: 2100, y: 1950, radius: 270 },
+];
+
 export function applyMovementInput(
   world: GameWorldState,
   playerId: string,
@@ -75,8 +82,42 @@ export function applyMovementInput(
   const ny = dy / len;
 
   player.facing = Math.atan2(ny, nx);
-  const currentSpeed = DEFAULT_PLAYER_SPEED * (player.speedMultiplier ?? 1.0);
 
-  player.position.x = Math.max(0, Math.min(world.mapSize, player.position.x + nx * currentSpeed * dt));
-  player.position.y = Math.max(0, Math.min(world.mapSize, player.position.y + ny * currentSpeed * dt));
+  // 1. Water Slowdown Check (0.5x in water, smooth lerp over 0.3s)
+  let inWater = false;
+  for (const lake of WATER_LAKES) {
+    if (Math.hypot(player.position.x - lake.x, player.position.y - lake.y) < lake.radius) {
+      inWater = true;
+      break;
+    }
+  }
+
+  const targetWaterSpeed = inWater ? 0.5 : 1.0;
+  const currentWaterMultiplier = player.waterSpeedMultiplier ?? 1.0;
+  const lerpFactor = Math.min(1.0, dt / 0.3);
+  player.waterSpeedMultiplier = currentWaterMultiplier + (targetWaterSpeed - currentWaterMultiplier) * lerpFactor;
+
+  // 2. Combined speed
+  const currentSpeed = DEFAULT_PLAYER_SPEED * (player.speedMultiplier ?? 1.0) * player.waterSpeedMultiplier;
+
+  const nextX = Math.max(0, Math.min(world.mapSize, player.position.x + nx * currentSpeed * dt));
+  const nextY = Math.max(0, Math.min(world.mapSize, player.position.y + ny * currentSpeed * dt));
+
+  // 3. Collision with unbroken fences
+  let blocked = false;
+  if (world.fences) {
+    for (const fence of Object.values(world.fences)) {
+      if (!fence.isBroken) {
+        if (Math.hypot(nextX - fence.position.x, nextY - fence.position.y) < 24) {
+          blocked = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!blocked) {
+    player.position.x = nextX;
+    player.position.y = nextY;
+  }
 }

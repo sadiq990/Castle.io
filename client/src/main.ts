@@ -1,4 +1,4 @@
-﻿// Game bootstrapper — login flow + game loop + CTF Flag Mode.
+// Game bootstrapper — login flow + game loop + CTF Flag Mode.
 
 import { initCanvas } from './core/Canvas.js';
 import { createGameLoop } from './core/GameLoop.js';
@@ -11,6 +11,9 @@ import { connectToServer, getSocket } from './network/socketClient.js';
 import { initWorldSync } from './network/worldSync.js';
 import { MAP_CONFIG } from './map/map.config.js';
 import { initFlagUI, updateFlagUI, showCTFToast } from './ui/flagUI.js';
+import { initResourceUI } from './ui/resourceUI.js';
+import { initSlaves } from './slaves/SlaveManager.js';
+import { attemptBuildFence, attemptAttackFence, setSceneManagerForFences, getActiveBuildType } from './fences/FenceManager.js';
 
 // ─── DOM REFS ────────────────────────────────────────────────
 const loginScreen    = document.getElementById('login-screen')!;
@@ -28,6 +31,16 @@ const state = createGameClientState();
 // Initialize CTF Top Scoreboard, Status Badges & Toasts
 initFlagUI();
 
+// Initialize Fence Manager & Resource UI
+setSceneManagerForFences(sceneManager);
+const handleBuild = () => {
+  const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
+  if (myPlayer) {
+    attemptBuildFence(sceneManager, myPlayer.position, myPlayer.facing ?? 0, myPlayer.team);
+  }
+};
+initResourceUI(handleBuild);
+
 // Load static map objects
 const mapObjects = createMapObjects();
 state.trees     = mapObjects.trees;
@@ -44,7 +57,19 @@ const socket = connectToServer();
 
 // ─── INPUT (Movement & Attack) ───────────────────────────────
 initLocalPlayerController(() => {
-  // Attack (Space or Left Click) sends playerAttack event
+  const myPlayer = (state.localPlayerId && state.players[state.localPlayerId]) ? state.players[state.localPlayerId] : localPlayer;
+  if (!myPlayer) return;
+
+  // 1. If in Build Mode -> Build fence!
+  if (getActiveBuildType()) {
+    handleBuild();
+    return;
+  }
+
+  // 2. Attack opponent fence if in range
+  attemptAttackFence(sceneManager, myPlayer.position, myPlayer.team, myPlayer.hasFlag);
+
+  // 3. Attack other players (knock flag)
   socket.emit('playerAttack');
 });
 
@@ -124,10 +149,18 @@ const loop = createGameLoop((dt) => {
 });
 loop.start();
 
+// Initialize 10 Slaves for player team
+initSlaves(sceneManager, 'blue');
+
 // World Sync
 initWorldSync(socket, state);
 socket.on('worldState',   () => updatePlayerList());
-socket.on('playerJoined', () => updatePlayerList());
+socket.on('playerJoined', p => {
+  updatePlayerList();
+  if (p.id === state.localPlayerId) {
+    initSlaves(sceneManager, p.team);
+  }
+});
 socket.on('playerLeft',   () => updatePlayerList());
 
 // ─── LOGIN FLOW ───────────────────────────────────────────────

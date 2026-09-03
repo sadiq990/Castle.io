@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../core/SceneManager.js';
 
 interface CloudInstance {
@@ -16,6 +16,8 @@ function createSingleCloud(): THREE.Group {
     roughness: 0.95,
     metalness: 0.0,
     flatShading: true,
+    transparent: true,
+    opacity: 0.35,
   });
 
   // Cluster of 4-6 low-poly spheres to form a puffy cloud
@@ -32,7 +34,7 @@ function createSingleCloud(): THREE.Group {
       (Math.random() - 0.5) * 8,
       (Math.random() - 0.5) * 25
     );
-    mesh.castShadow = true;
+    mesh.castShadow = false; // Soft atmospheric look without harsh dark shadows
     group.add(mesh);
   }
 

@@ -1,4 +1,4 @@
-﻿// Authoritative game world.
+// Authoritative game world.
 // Owns the canonical GameWorldState and the fixed-rate tick loop.
 // Server broadcasts worldState to all clients on every tick.
 
@@ -9,6 +9,7 @@ import { TICK_RATE } from 'shared/constants/game.constants.js';
 import { createInitialWorld } from './worldFactory.js';
 import { applyMovementInput } from '../player/playerServer.js';
 import { updateCTF, handlePlayerAttack } from '../ctf/flagServer.js';
+import { buildFence, handleFenceAttack, updateFences } from '../fences/fenceServer.js';
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -35,9 +36,44 @@ export class GameWorld {
   }
 
   handleAttack(playerId: string): void {
+    const player = this.state.players[playerId];
+    if (!player) return;
+
+    // 1. Attack other players (knock flag)
     handlePlayerAttack(this.state, playerId, (notif) => {
       this.io.emit('flagNotification', notif);
     });
+
+    // 2. Attack nearby opponent fence
+    if (this.state.fences) {
+      for (const fence of Object.values(this.state.fences)) {
+        if (!fence.isBroken && fence.team !== player.team) {
+          const dist = Math.hypot(fence.position.x - player.position.x, fence.position.y - player.position.y);
+          if (dist <= 75) {
+            const res = handleFenceAttack(this.state, player, fence.id, (notif) => {
+              this.io.emit('flagNotification', notif);
+            });
+            if (res.damaged) {
+              this.io.emit('fenceDamaged', { fenceId: fence.id, hp: fence.hp, damage: 15 });
+            }
+            if (res.destroyed) {
+              this.io.emit('fenceDestroyed', { fenceId: fence.id, team: fence.team });
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  handleBuildFence(playerId: string, data: { type: 'WOOD' | 'STONE'; position: { x: number; y: number }; rotation: number }): void {
+    const player = this.state.players[playerId];
+    if (!player) return;
+
+    const fence = buildFence(this.state, player, data.type, data.position, data.rotation);
+    if (fence) {
+      this.io.emit('fenceBuilt', fence);
+    }
   }
 
   start(): void {
@@ -69,7 +105,10 @@ export class GameWorld {
       this.io.emit('flagNotification', notif);
     });
 
-    // 3. Broadcast snapshot to all clients
+    // 3. Update Fences (cleanup broken after 60s)
+    updateFences(this.state);
+
+    // 4. Broadcast snapshot to all clients
     this.io.emit('worldState', this.state);
   }
 }

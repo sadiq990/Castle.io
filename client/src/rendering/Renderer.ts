@@ -1,4 +1,4 @@
-﻿// Top-level render orchestrator for 3D.
+// Top-level render orchestrator for 3D.
 // Reconciles GameClientState into the SceneManager with Terrain, Paths, Scattering, Clouds, Shrine & Water Lilies.
 
 import type { SceneManager } from '../core/SceneManager.js';
@@ -17,6 +17,9 @@ import { updatePlayer3D } from '../player/player.renderer.js';
 import { updateFlag3D } from '../entities/flag/flag.renderer.js';
 import { updateFlagVFX } from '../entities/flag/flagVFX.js';
 import { drawMinimap } from '../ui/minimap.renderer.js';
+import { initResourceZones3D } from '../resources/ResourceManager.js';
+import { updateSlaves3D } from '../slaves/SlaveManager.js';
+import { updateFences3D, syncWorldFences } from '../fences/FenceManager.js';
 
 let terrainInitialized = false;
 let lastRenderTime = 0;
@@ -42,6 +45,9 @@ function ensureWorldEnvironment(sceneManager: SceneManager, mapSize: number): vo
 
   // 5. Puffy Low-Poly Clouds in Sky
   initClouds(sceneManager, mapSize);
+
+  // 6. Forest and Mine Resource Zones
+  initResourceZones3D(sceneManager);
 }
 
 export function renderFrame(
@@ -62,6 +68,13 @@ export function renderFrame(
 
   // 3. Central Ancient Stonehenge Shrine & Crossroads Crystal
   updateShrine3D(sceneManager, time);
+
+  // 4. Slaves (Villager mini-army) & Fences
+  updateSlaves3D(dt, time);
+  if (state.fences) {
+    syncWorldFences(sceneManager, state.fences);
+  }
+  updateFences3D(dt);
 
   // 4. Lakes & Shorelines
   for (const water of state.waters) {
