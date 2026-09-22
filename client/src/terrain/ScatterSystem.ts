@@ -1,269 +1,433 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { getTerrainHeight, getTerrainSlope } from './TerrainGenerator.js';
 import { isNearPath } from './PathSystem.js';
 import { MAP_CONFIG } from '../map/map.config.js';
 
+// ── HELPERS ────────────────────────────────────────────────────────────────
 function isInsideAnyLake(x: number, z: number, buffer = 20): boolean {
   for (const lake of MAP_CONFIG.waters) {
     const dist = Math.hypot(x - lake.position.x, z - lake.position.y);
     const radius = lake.radius ?? 250;
-    if (dist < radius + buffer) {
-      return true;
-    }
+    if (dist < radius + buffer) return true;
   }
   return false;
 }
 
 function isNearAnyCastle(x: number, z: number, buffer = 140): boolean {
-  if (Math.hypot(x - 500, z - 500) < buffer) return true;
+  if (Math.hypot(x - 500,  z - 500 ) < buffer) return true;
   if (Math.hypot(x - 2500, z - 2500) < buffer) return true;
   return false;
 }
 
-// Builds a volumetric low-poly 3D grass tuft (4 V-shaped triangular blades + ground shadow base)
-function createVolumetricGrassGeometry(): THREE.BufferGeometry {
-  const vertices: number[] = [];
-  const indices: number[] = [];
-  const normals: number[] = [];
-
-  // 4 triangular blades with outward flare
-  const blades = [
-    // Blade 1: flares forward-left
-    { baseL: [-1.2, 0, -0.4], baseR: [1.2, 0, 0.4], tip: [-1.8, 8.5, 1.8] },
-    // Blade 2: flares back-right
-    { baseL: [-0.4, 0, 1.2], baseR: [0.4, 0, -1.2], tip: [2.2, 9.2, -1.5] },
-    // Blade 3: flares right-forward
-    { baseL: [-1.0, 0, 0.8], baseR: [1.0, 0, -0.8], tip: [1.6, 7.8, 2.4] },
-    // Blade 4: flares back-left
-    { baseL: [0.8, 0, 1.0], baseR: [-0.8, 0, -1.0], tip: [-2.2, 8.0, -2.0] },
-  ];
-
-  let vIdx = 0;
-  for (const b of blades) {
-    vertices.push(
-      b.baseL[0]!, b.baseL[1]!, b.baseL[2]!,
-      b.baseR[0]!, b.baseR[1]!, b.baseR[2]!,
-      b.tip[0]!,   b.tip[1]!,   b.tip[2]!
-    );
-
-    // Normal pointing outward
-    const edge1 = new THREE.Vector3(b.baseR[0]! - b.baseL[0]!, b.baseR[1]! - b.baseL[1]!, b.baseR[2]! - b.baseL[2]!);
-    const edge2 = new THREE.Vector3(b.tip[0]! - b.baseL[0]!, b.tip[1]! - b.baseL[1]!, b.tip[2]! - b.baseL[2]!);
-    const norm = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
-
-    normals.push(
-      norm.x, norm.y, norm.z,
-      norm.x, norm.y, norm.z,
-      norm.x, norm.y, norm.z
-    );
-
-    // Double-sided triangle
-    indices.push(vIdx, vIdx + 1, vIdx + 2);
-    indices.push(vIdx, vIdx + 2, vIdx + 1);
-    vIdx += 3;
-  }
-
-  // Base Contact Shadow Disk (small dark flat circle at ground level)
-  const shadowSegs = 6;
-  const shadowRadius = 2.4;
-  const centerV = vIdx;
-  vertices.push(0, 0.08, 0);
-  normals.push(0, 1, 0);
-  vIdx++;
-
-  for (let i = 0; i < shadowSegs; i++) {
-    const a = (i / shadowSegs) * Math.PI * 2;
-    vertices.push(Math.cos(a) * shadowRadius, 0.08, Math.sin(a) * shadowRadius);
-    normals.push(0, 1, 0);
-  }
-
-  for (let i = 0; i < shadowSegs; i++) {
-    const next = (i + 1) % shadowSegs;
-    indices.push(centerV, centerV + 1 + i, centerV + 1 + next);
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geo.setIndex(indices);
-
-  return geo;
+function jitter(v: number, seed1: number, seed2: number, step: number): number {
+  return v + (Math.sin(v * seed1 + v * seed2) * 0.5) * (step * 0.82);
 }
 
+// ── INSTANCED SCATTER FACTORY ─────────────────────────────────────────────
 export function createScatterMeshes(mapSize: number): THREE.Group {
   const scatterGroup = new THREE.Group();
-  scatterGroup.name = 'scatterGroup';
+  scatterGroup.name  = 'scatterGroup';
 
-  const dummy = new THREE.Object3D();
+  const dummy    = new THREE.Object3D();
+  const tmpColor = new THREE.Color();
 
-  // ── 1. VOLUMETRIC 3D GRASS TUFTS (5,500 instances) ─────────
-  const GRASS_COUNT = 5500;
-  const grassGeo = createVolumetricGrassGeometry();
+  // ────────────────────────────────────────────────────────────────────────
+  // A. TALL PINE — single cone geometry (stable, no UV issues)
+  //    3000 instances on mid-high terrain
+  // ────────────────────────────────────────────────────────────────────────
+  const PINE_COUNT  = 3000;
+  const pineGeo     = new THREE.ConeGeometry(18, 52, 7); // 7-sided cone, classic pine
+  pineGeo.translate(0, 26, 0); // Base at Y=0
+  const pineMat     = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.02, flatShading: true });
+  const pineInstanced = new THREE.InstancedMesh(pineGeo, pineMat, PINE_COUNT);
+  pineInstanced.castShadow    = true;
+  pineInstanced.receiveShadow = true;
 
-  const grassMat = new THREE.MeshStandardMaterial({
-    roughness: 0.78,
-    metalness: 0.05,
-    side: THREE.DoubleSide,
-    flatShading: true, // Flat shading gives distinct faces and crisp 3D volume!
-  });
+  const pineColors = [
+    new THREE.Color(0x14532d),
+    new THREE.Color(0x1a6b38),
+    new THREE.Color(0x22863a),
+    new THREE.Color(0x0f4c25),
+    new THREE.Color(0x166534),
+  ];
 
+  let pineIdx = 0;
+  const pineStep = Math.sqrt((mapSize * mapSize) / PINE_COUNT);
+
+  for (let gx = 80; gx < mapSize - 80 && pineIdx < PINE_COUNT; gx += pineStep) {
+    for (let gz = 80; gz < mapSize - 80 && pineIdx < PINE_COUNT; gz += pineStep) {
+      const x = jitter(gx, 12.9898, 78.233, pineStep);
+      const z = jitter(gz, 39.346,  11.135, pineStep);
+
+      if (isInsideAnyLake(x, z, 40))  continue;
+      if (isNearAnyCastle(x, z, 145)) continue;
+      if (isNearPath(x, z, 20))       continue;
+      if (isNearPath(x, z, 36) && Math.random() > 0.3) continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h > 52 || h < 0.5) continue;
+      if (slope > 0.58)       continue;
+      if (Math.random() > 0.72) continue;
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      const scale = 0.65 + Math.random() * 0.55;
+      const heightScale = 1.0 + Math.min(0.5, h / 70);
+      dummy.scale.set(scale, scale * heightScale, scale);
+      dummy.updateMatrix();
+      pineInstanced.setMatrixAt(pineIdx, dummy.matrix);
+
+      tmpColor.copy(pineColors[Math.floor(Math.random() * pineColors.length)]!);
+      pineInstanced.setColorAt(pineIdx, tmpColor);
+      pineIdx++;
+    }
+  }
+  pineInstanced.count = pineIdx;
+  pineInstanced.instanceMatrix.needsUpdate = true;
+  if (pineInstanced.instanceColor) pineInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(pineInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // B. BROAD OAK — dodecahedron canopy, 1400 instances
+  //    Prefers flat valleys and low hills
+  // ────────────────────────────────────────────────────────────────────────
+  const OAK_COUNT  = 1400;
+  const oakGeo     = new THREE.DodecahedronGeometry(18, 1);
+  oakGeo.translate(0, 36, 0); // Canopy floats above ground
+  const oakMat     = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0.01, flatShading: true });
+  const oakInstanced = new THREE.InstancedMesh(oakGeo, oakMat, OAK_COUNT);
+  oakInstanced.castShadow    = true;
+  oakInstanced.receiveShadow = true;
+
+  const oakColors = [
+    new THREE.Color(0x2e7d32), // Deep forest
+    new THREE.Color(0x388e3c), // Summer green
+    new THREE.Color(0x43a047), // Bright leaf
+    new THREE.Color(0xd97706), // Autumn amber
+    new THREE.Color(0xf59e0b), // Golden autumn
+    new THREE.Color(0x7b4f00), // Brown autumn
+  ];
+
+  let oakIdx = 0;
+  const oakStep = Math.sqrt((mapSize * mapSize) / OAK_COUNT);
+
+  for (let gx = 100; gx < mapSize - 100 && oakIdx < OAK_COUNT; gx += oakStep) {
+    for (let gz = 100; gz < mapSize - 100 && oakIdx < OAK_COUNT; gz += oakStep) {
+      const x = jitter(gx, 45.18, 23.67, oakStep);
+      const z = jitter(gz, 78.34, 91.12, oakStep);
+
+      if (isInsideAnyLake(x, z, 50))  continue;
+      if (isNearAnyCastle(x, z, 155)) continue;
+      if (isNearPath(x, z, 24))       continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h > 24 || h < 0.8) continue;
+      if (slope > 0.40)       continue;
+      if (Math.random() > 0.65) continue;
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      const scale = 0.75 + Math.random() * 0.50;
+      dummy.scale.set(scale, scale * 0.88, scale);
+      dummy.updateMatrix();
+      oakInstanced.setMatrixAt(oakIdx, dummy.matrix);
+
+      tmpColor.copy(oakColors[Math.floor(Math.random() * oakColors.length)]!);
+      oakInstanced.setColorAt(oakIdx, tmpColor);
+      oakIdx++;
+    }
+  }
+  oakInstanced.count = oakIdx;
+  oakInstanced.instanceMatrix.needsUpdate = true;
+  if (oakInstanced.instanceColor) oakInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(oakInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // C. DEAD / BARE TREE — thin cylinder trunk, 450 instances
+  //    Only on steep rocky high terrain
+  // ────────────────────────────────────────────────────────────────────────
+  const DEAD_COUNT = 450;
+  const deadGeo    = new THREE.CylinderGeometry(1.5, 4.0, 34, 5);
+  deadGeo.translate(0, 17, 0);
+  const deadMat    = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0.01, flatShading: true });
+  const deadInstanced = new THREE.InstancedMesh(deadGeo, deadMat, DEAD_COUNT);
+  deadInstanced.castShadow    = true;
+  deadInstanced.receiveShadow = true;
+
+  const deadColors = [
+    new THREE.Color(0x5c4a3d),
+    new THREE.Color(0x6b5a4f),
+    new THREE.Color(0x4a3c32),
+    new THREE.Color(0x7a6a5e),
+  ];
+
+  let deadIdx = 0;
+  const deadStep = Math.sqrt((mapSize * mapSize) / DEAD_COUNT);
+
+  for (let gx = 80; gx < mapSize - 80 && deadIdx < DEAD_COUNT; gx += deadStep) {
+    for (let gz = 80; gz < mapSize - 80 && deadIdx < DEAD_COUNT; gz += deadStep) {
+      const x = jitter(gx, 56.71, 34.89, deadStep);
+      const z = jitter(gz, 12.45, 67.23, deadStep);
+
+      if (isInsideAnyLake(x, z, 30))  continue;
+      if (isNearAnyCastle(x, z, 140)) continue;
+      if (isNearPath(x, z, 16))       continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h < 25 || h > 58)  continue;
+      if (slope < 0.18)       continue;
+      if (Math.random() > 0.52) continue;
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(
+        (Math.random() - 0.5) * 0.12,
+        Math.random() * Math.PI * 2,
+        (Math.random() - 0.5) * 0.10
+      );
+      const scale = 0.65 + Math.random() * 0.60;
+      dummy.scale.set(scale, scale, scale);
+      dummy.updateMatrix();
+      deadInstanced.setMatrixAt(deadIdx, dummy.matrix);
+
+      tmpColor.copy(deadColors[Math.floor(Math.random() * deadColors.length)]!);
+      deadInstanced.setColorAt(deadIdx, tmpColor);
+      deadIdx++;
+    }
+  }
+  deadInstanced.count = deadIdx;
+  deadInstanced.instanceMatrix.needsUpdate = true;
+  if (deadInstanced.instanceColor) deadInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(deadInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // D. WILDFLOWERS — flat dodecahedron head, 2200 instances
+  //    Only on flat green meadows
+  // ────────────────────────────────────────────────────────────────────────
+  const FLOWER_COUNT  = 2200;
+  const flowerGeo     = new THREE.DodecahedronGeometry(4.0, 0);
+  flowerGeo.scale(1.0, 0.5, 1.0); // Flat flower head
+  flowerGeo.translate(0, 9, 0);
+  const flowerMat     = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0.0, flatShading: true });
+  const flowerInstanced = new THREE.InstancedMesh(flowerGeo, flowerMat, FLOWER_COUNT);
+  flowerInstanced.receiveShadow = true;
+
+  const flowerColors = [
+    new THREE.Color(0xfbbf24), // Golden yellow
+    new THREE.Color(0xef4444), // Poppy red
+    new THREE.Color(0xffffff), // White daisy
+    new THREE.Color(0x8b5cf6), // Lavender
+    new THREE.Color(0xf472b6), // Pink
+    new THREE.Color(0xfde68a), // Pale yellow
+    new THREE.Color(0xfca5a5), // Soft coral
+    new THREE.Color(0x6ee7b7), // Mint
+  ];
+
+  let flowerIdx = 0;
+  const flowerStep = Math.sqrt((mapSize * mapSize) / FLOWER_COUNT);
+
+  for (let gx = 60; gx < mapSize - 60 && flowerIdx < FLOWER_COUNT; gx += flowerStep) {
+    for (let gz = 60; gz < mapSize - 60 && flowerIdx < FLOWER_COUNT; gz += flowerStep) {
+      const x = jitter(gx, 88.34, 45.12, flowerStep);
+      const z = jitter(gz, 23.67, 99.45, flowerStep);
+
+      if (isInsideAnyLake(x, z, 35))  continue;
+      if (isNearAnyCastle(x, z, 140)) continue;
+      if (isNearPath(x, z, 16))       continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h > 14 || h < 0.5) continue;
+      if (slope > 0.18)       continue;
+      if (Math.random() > 0.60) continue;
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      const scale = 0.55 + Math.random() * 0.55;
+      dummy.scale.set(scale, scale, scale);
+      dummy.updateMatrix();
+      flowerInstanced.setMatrixAt(flowerIdx, dummy.matrix);
+
+      tmpColor.copy(flowerColors[Math.floor(Math.random() * flowerColors.length)]!);
+      flowerInstanced.setColorAt(flowerIdx, tmpColor);
+      flowerIdx++;
+    }
+  }
+  flowerInstanced.count = flowerIdx;
+  flowerInstanced.instanceMatrix.needsUpdate = true;
+  if (flowerInstanced.instanceColor) flowerInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(flowerInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // E. VOLUMETRIC GRASS TUFTS — 5000 instances
+  // ────────────────────────────────────────────────────────────────────────
+  const GRASS_COUNT   = 5000;
+  const grassGeo      = new THREE.ConeGeometry(3.5, 10, 4);
+  grassGeo.translate(0, 5, 0);
+  const grassMat      = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0.04, flatShading: true, side: THREE.DoubleSide });
   const grassInstanced = new THREE.InstancedMesh(grassGeo, grassMat, GRASS_COUNT);
   grassInstanced.receiveShadow = true;
 
-  // Two color tones: Bright Lime (#7CB342) and Deep Forest Green (#558B2F)
-  const colorLight = new THREE.Color(0x7cb342);
-  const colorDark  = new THREE.Color(0x558b2f);
-  const tempColor  = new THREE.Color();
+  const grassColors = [
+    new THREE.Color(0x7cb342),
+    new THREE.Color(0x558b2f),
+    new THREE.Color(0x8bc34a),
+    new THREE.Color(0x33691e),
+    new THREE.Color(0x9ccc65),
+  ];
 
   let grassIdx = 0;
-  const gridStep = Math.sqrt((mapSize * mapSize) / GRASS_COUNT);
+  const grassStep = Math.sqrt((mapSize * mapSize) / GRASS_COUNT);
 
-  for (let gx = 60; gx < mapSize - 60 && grassIdx < GRASS_COUNT; gx += gridStep) {
-    for (let gz = 60; gz < mapSize - 60 && grassIdx < GRASS_COUNT; gz += gridStep) {
-      // Jittered grid sampling
-      const x = gx + (Math.sin(gx * 12.9898 + gz * 78.233) * 0.5) * (gridStep * 0.85);
-      const z = gz + (Math.cos(gx * 39.346 + gz * 11.135) * 0.5) * (gridStep * 0.85);
+  for (let gx = 60; gx < mapSize - 60 && grassIdx < GRASS_COUNT; gx += grassStep) {
+    for (let gz = 60; gz < mapSize - 60 && grassIdx < GRASS_COUNT; gz += grassStep) {
+      const x = jitter(gx, 12.9898, 78.233, grassStep);
+      const z = jitter(gz, 39.346,  11.135, grassStep);
 
-      if (isInsideAnyLake(x, z, 30)) continue;
+      if (isInsideAnyLake(x, z, 30))  continue;
       if (isNearAnyCastle(x, z, 130)) continue;
-
-      // Road transition verge:
-      // Inside 18 units: completely clear road
-      // Between 18 and 30 units: sparse dirt verge (only 25% chance)
-      if (isNearPath(x, z, 18)) continue;
+      if (isNearPath(x, z, 18))       continue;
       if (isNearPath(x, z, 30) && Math.random() > 0.25) continue;
 
-      const y = getTerrainHeight(x, z);
+      const h     = getTerrainHeight(x, z);
       const slope = getTerrainSlope(x, z);
-      if (slope > 0.45) continue; // Don't place on vertical cliffs
 
-      dummy.position.set(x, y, z);
+      if (h > 30 || h < 0.1) continue;
+      if (slope > 0.50)       continue;
 
-      // Random Y-rotation (0-360°) + slight tilt variation (±5°)
-      const tiltX = (Math.random() - 0.5) * 0.14; // ~ ±4°
-      const tiltZ = (Math.random() - 0.5) * 0.14;
-      dummy.rotation.set(tiltX, Math.random() * Math.PI * 2, tiltZ);
-
-      // Random scale (0.7x to 1.3x)
-      const scale = 0.72 + Math.random() * 0.58;
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(
+        (Math.random() - 0.5) * 0.14,
+        Math.random() * Math.PI * 2,
+        (Math.random() - 0.5) * 0.14
+      );
+      const scale = 0.65 + Math.random() * 0.65;
       dummy.scale.set(scale, scale, scale);
       dummy.updateMatrix();
-
       grassInstanced.setMatrixAt(grassIdx, dummy.matrix);
 
-      // Mixed dual-tone coloring: 50% light / 50% dark mix
-      const toneMix = Math.random();
-      tempColor.copy(colorLight).lerp(colorDark, toneMix);
-      grassInstanced.setColorAt(grassIdx, tempColor);
-
+      tmpColor.copy(grassColors[Math.floor(Math.random() * grassColors.length)]!);
+      grassInstanced.setColorAt(grassIdx, tmpColor);
       grassIdx++;
     }
   }
-
   grassInstanced.count = grassIdx;
   grassInstanced.instanceMatrix.needsUpdate = true;
   if (grassInstanced.instanceColor) grassInstanced.instanceColor.needsUpdate = true;
   scatterGroup.add(grassInstanced);
 
-  // ── 2. ROCKS & PEBBLES (900 instances) ─────────────────────
-  const ROCK_COUNT = 900;
-  const rockGeo = new THREE.DodecahedronGeometry(3.5, 0);
-  const rockMat = new THREE.MeshStandardMaterial({
-    color: 0x8e9aa1,
-    roughness: 0.92,
-    metalness: 0.05,
-    flatShading: true,
-  });
-
+  // ────────────────────────────────────────────────────────────────────────
+  // F. ROCKS & PEBBLES — 900 instances
+  // ────────────────────────────────────────────────────────────────────────
+  const ROCK_COUNT   = 900;
+  const rockGeo      = new THREE.DodecahedronGeometry(3.5, 0);
+  const rockMat      = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.06, flatShading: true });
   const rockInstanced = new THREE.InstancedMesh(rockGeo, rockMat, ROCK_COUNT);
-  rockInstanced.castShadow = true;
+  rockInstanced.castShadow    = true;
   rockInstanced.receiveShadow = true;
 
+  const rockColors = [
+    new THREE.Color(0x8e9aa1),
+    new THREE.Color(0x757d85),
+    new THREE.Color(0xa0a8af),
+    new THREE.Color(0x6b7280),
+  ];
+
   let rockIdx = 0;
-  const rockGridStep = Math.sqrt((mapSize * mapSize) / ROCK_COUNT);
+  const rockStep = Math.sqrt((mapSize * mapSize) / ROCK_COUNT);
 
-  for (let rx = 80; rx < mapSize - 80 && rockIdx < ROCK_COUNT; rx += rockGridStep) {
-    for (let rz = 80; rz < mapSize - 80 && rockIdx < ROCK_COUNT; rz += rockGridStep) {
-      const x = rx + (Math.sin(rx * 93.98 + rz * 67.23) * 0.5) * (rockGridStep * 0.85);
-      const z = rz + (Math.cos(rx * 23.34 + rz * 85.11) * 0.5) * (rockGridStep * 0.85);
+  for (let rx = 80; rx < mapSize - 80 && rockIdx < ROCK_COUNT; rx += rockStep) {
+    for (let rz = 80; rz < mapSize - 80 && rockIdx < ROCK_COUNT; rz += rockStep) {
+      const x = jitter(rx, 93.98, 67.23, rockStep);
+      const z = jitter(rz, 23.34, 85.11, rockStep);
 
-      if (isInsideAnyLake(x, z, 15)) continue;
+      if (isInsideAnyLake(x, z, 15))  continue;
       if (isNearAnyCastle(x, z, 130)) continue;
-      if (isNearPath(x, z, 18)) continue;
+      if (isNearPath(x, z, 18))       continue;
 
-      const y = getTerrainHeight(x, z);
+      const h     = getTerrainHeight(x, z);
       const slope = getTerrainSlope(x, z);
 
-      const isShore = y < 1.2;
-      const isHillSlope = slope > 0.20;
-      const isRoadVerge = isNearPath(x, z, 30); // Small pebbles along road edge!
-      const isRandomPlain = Math.random() < 0.25;
+      const isShore     = h < 1.5;
+      const isHillSlope = slope > 0.22;
+      const isRoadVerge = isNearPath(x, z, 32);
+      const isRandom    = Math.random() < 0.22;
 
-      if (!isShore && !isHillSlope && !isRoadVerge && !isRandomPlain) continue;
+      if (!isShore && !isHillSlope && !isRoadVerge && !isRandom) continue;
 
-      dummy.position.set(x, y + 1.2, z);
-      dummy.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI * 2,
-        Math.random() * Math.PI
-      );
-
-      const scale = isRoadVerge ? (0.4 + Math.random() * 0.5) : (0.5 + Math.random() * 1.3);
-      dummy.scale.set(scale, scale * 0.75, scale);
+      dummy.position.set(x, h + 1.2, z);
+      dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI * 2, Math.random() * Math.PI);
+      const scale = isRoadVerge ? (0.35 + Math.random() * 0.45) : (0.55 + Math.random() * 1.4);
+      dummy.scale.set(scale, scale * 0.72, scale);
       dummy.updateMatrix();
-
       rockInstanced.setMatrixAt(rockIdx, dummy.matrix);
+
+      tmpColor.copy(rockColors[Math.floor(Math.random() * rockColors.length)]!);
+      rockInstanced.setColorAt(rockIdx, tmpColor);
       rockIdx++;
     }
   }
-
   rockInstanced.count = rockIdx;
   rockInstanced.instanceMatrix.needsUpdate = true;
+  if (rockInstanced.instanceColor) rockInstanced.instanceColor.needsUpdate = true;
   scatterGroup.add(rockInstanced);
 
-  // ── 3. WILD BUSHES (400 instances) ─────────────────────────
-  const BUSH_COUNT = 400;
-  const bushGeo = new THREE.DodecahedronGeometry(7.0, 1);
-  const bushMat = new THREE.MeshStandardMaterial({
-    color: 0x3d7e2e,
-    roughness: 0.88,
-    flatShading: true,
-  });
-
+  // ────────────────────────────────────────────────────────────────────────
+  // G. WILD BUSHES — 400 instances
+  // ────────────────────────────────────────────────────────────────────────
+  const BUSH_COUNT   = 400;
+  const bushGeo      = new THREE.DodecahedronGeometry(7.0, 1);
+  const bushMat      = new THREE.MeshStandardMaterial({ roughness: 0.88, flatShading: true });
   const bushInstanced = new THREE.InstancedMesh(bushGeo, bushMat, BUSH_COUNT);
-  bushInstanced.castShadow = true;
+  bushInstanced.castShadow    = true;
   bushInstanced.receiveShadow = true;
 
+  const bushColors = [
+    new THREE.Color(0x3d7e2e),
+    new THREE.Color(0x2d6b20),
+    new THREE.Color(0x4a8f35),
+    new THREE.Color(0x5a6e2a),
+  ];
+
   let bushIdx = 0;
-  const bushGridStep = Math.sqrt((mapSize * mapSize) / BUSH_COUNT);
+  const bushStep = Math.sqrt((mapSize * mapSize) / BUSH_COUNT);
 
-  for (let bx = 100; bx < mapSize - 100 && bushIdx < BUSH_COUNT; bx += bushGridStep) {
-    for (let bz = 100; bz < mapSize - 100 && bushIdx < BUSH_COUNT; bz += bushGridStep) {
-      const x = bx + (Math.sin(bx * 45.18 + bz * 23.67) * 0.5) * (bushGridStep * 0.85);
-      const z = bz + (Math.cos(bx * 78.34 + bz * 91.12) * 0.5) * (bushGridStep * 0.85);
+  for (let bx = 100; bx < mapSize - 100 && bushIdx < BUSH_COUNT; bx += bushStep) {
+    for (let bz = 100; bz < mapSize - 100 && bushIdx < BUSH_COUNT; bz += bushStep) {
+      const x = jitter(bx, 45.18, 23.67, bushStep);
+      const z = jitter(bz, 78.34, 91.12, bushStep);
 
-      if (isInsideAnyLake(x, z, 35)) continue;
+      if (isInsideAnyLake(x, z, 35))  continue;
       if (isNearAnyCastle(x, z, 140)) continue;
-      if (isNearPath(x, z, 22)) continue;
+      if (isNearPath(x, z, 22))       continue;
 
-      const y = getTerrainHeight(x, z);
+      const h     = getTerrainHeight(x, z);
       const slope = getTerrainSlope(x, z);
-      if (slope > 0.35) continue;
 
-      dummy.position.set(x, y + 4.0, z);
+      if (h > 20 || h < 0.5) continue;
+      if (slope > 0.35)       continue;
+
+      dummy.position.set(x, h + 4.0, z);
       dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-
       const scale = 0.8 + Math.random() * 0.45;
       dummy.scale.set(scale, scale * 0.85, scale);
       dummy.updateMatrix();
-
       bushInstanced.setMatrixAt(bushIdx, dummy.matrix);
+
+      tmpColor.copy(bushColors[Math.floor(Math.random() * bushColors.length)]!);
+      bushInstanced.setColorAt(bushIdx, tmpColor);
       bushIdx++;
     }
   }
-
   bushInstanced.count = bushIdx;
   bushInstanced.instanceMatrix.needsUpdate = true;
+  if (bushInstanced.instanceColor) bushInstanced.instanceColor.needsUpdate = true;
   scatterGroup.add(bushInstanced);
 
   return scatterGroup;

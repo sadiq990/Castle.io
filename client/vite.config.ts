@@ -8,11 +8,13 @@ export default defineConfig({
     },
   },
   // Serve the root assets/ folder at /assets/* so AssetLoader.ts can fetch them.
-  // This folder is shared with the server and contains PNGs/SVGs for entities.
   publicDir: resolve(__dirname, '../assets'),
   server: {
-    host: true, // expose on LAN
+    host: true,
     port: 5173,
+    fs: {
+      allow: ['..'],
+    },
   },
   build: {
     outDir: 'dist',
