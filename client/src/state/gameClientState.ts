@@ -33,8 +33,8 @@ export function createGameClientState(): GameClientState {
     arrows: [],
     ctf: {
       flags: {
-        blue: { team: 'blue', status: 'AT_HOME', position: { x: 500, y: 500 }, carrierId: null, homePosition: { x: 500, y: 500 }, dropTimer: 0 },
-        red:  { team: 'red',  status: 'AT_HOME', position: { x: 2500, y: 2500 }, carrierId: null, homePosition: { x: 2500, y: 2500 }, dropTimer: 0 },
+        blue: { team: 'blue', status: 'AT_HOME', position: { x: 700, y: 700 }, carrierId: null, homePosition: { x: 700, y: 700 }, dropTimer: 0 },
+        red:  { team: 'red',  status: 'AT_HOME', position: { x: 3800, y: 3800 }, carrierId: null, homePosition: { x: 3800, y: 3800 }, dropTimer: 0 },
       },
       scores: { blue: 0, red: 0 },
       winner: null,

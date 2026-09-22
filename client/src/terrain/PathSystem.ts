@@ -1,18 +1,19 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { getTerrainHeight } from './TerrainGenerator.js';
 import { MAP_CONFIG } from '../map/map.config.js';
 
-// Base waypoints connecting Blue Castle (500, 500) to Red Castle (2500, 2500)
-// Planned carefully with generous clearance around lakes
+// Base waypoints connecting Blue Castle (700, 700) through Central Shrine (2250, 2250) to Red Castle (3800, 3800)
+// Planned carefully with generous clearance around all lakes
 const RAW_WAYPOINTS: [number, number][] = [
-  [500, 560],   // Blue Castle front gate
-  [700, 750],   // Leaving blue castle grounds
-  [1050, 720],  // Safe northern corridor past Lake 1 (radius 250 at 950, 1150)
-  [1450, 1250], // Approaching central crossroads
-  [1600, 1600], // Central pass between terrain swells
-  [1750, 2350], // Safe southern corridor around Lake 2 (radius 270 at 2100, 1950)
-  [2150, 2480], // Approaching red territory
-  [2500, 2440], // Red Castle front gate
+  [700, 780],   // Blue Castle front gate
+  [1050, 950],  // Leaving blue castle grounds
+  [1550, 1180], // Scenic corridor avoiding Lake 1 (at 1300, 1600)
+  [1900, 1750], // Approaching central crossroads
+  [2250, 2250], // Ancient Sacred Shrine crossroads!
+  [2600, 2750], // Leaving central highlands
+  [3000, 3350], // Corridor safely south of Lake 2 (at 3200, 2900)
+  [3500, 3620], // Approaching red territory
+  [3800, 3740], // Red Castle front gate
 ];
 
 // Dynamic radial contour push-out to ensure the road NEVER clips or touches any lake

@@ -1,26 +1,28 @@
-﻿import type { CTFState, FlagState, GameWorldState, PlayerState, Team } from 'shared/types/entities.js';
+import type { CTFState, FlagState, GameWorldState, PlayerState, Team } from 'shared/types/entities.js';
+import { DEFAULT_MAP_SIZE } from 'shared/constants/game.constants.js';
 
 export const FLAG_PICKUP_RADIUS = 75;
 export const CASTLE_SCORE_RADIUS = 120;
 export const WINNING_SCORE = 3;
 
 export function createInitialCTF(): CTFState {
+  const redPos = DEFAULT_MAP_SIZE - 700; // 3800
   return {
     flags: {
       blue: {
         team: 'blue',
         status: 'AT_HOME',
-        position: { x: 500, y: 500 },
+        position: { x: 700, y: 700 },
         carrierId: null,
-        homePosition: { x: 500, y: 500 },
+        homePosition: { x: 700, y: 700 },
         dropTimer: 0,
       },
       red: {
         team: 'red',
         status: 'AT_HOME',
-        position: { x: 2500, y: 2500 },
+        position: { x: redPos, y: redPos },
         carrierId: null,
-        homePosition: { x: 2500, y: 2500 },
+        homePosition: { x: redPos, y: redPos },
         dropTimer: 0,
       },
     },

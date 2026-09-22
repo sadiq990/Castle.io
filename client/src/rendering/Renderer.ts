@@ -85,9 +85,9 @@ export function renderFrame(
     updateWater3D(sceneManager, water, time);
   }
 
-  // 5. Trees & Stones (Grounded on terrain height)
+  // 5. Trees & Stones (Grounded on terrain height with wind sway)
   for (const tree of state.trees) {
-    updateTree3D(sceneManager, tree);
+    updateTree3D(sceneManager, tree, time);
   }
   for (const stone of state.stones) {
     updateStone3D(sceneManager, stone);

@@ -1,8 +1,8 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 import { getTerrainHeight } from '../../terrain/TerrainGenerator.js';
 
-const SHRINE_CENTER = { x: 1500, z: 1500 };
+const SHRINE_CENTER = { x: 2250, z: 2250 }; // Map center (4500/2)
 
 function createAncientShrineMesh(): THREE.Group {
   const shrineGroup = new THREE.Group();
@@ -21,10 +21,23 @@ function createAncientShrineMesh(): THREE.Group {
     flatShading: true,
   });
 
+  // 0. Grand Multi-tiered Stone Plaza Podium
+  const podiumGeo1 = new THREE.CylinderGeometry(92, 104, 3, 24);
+  const podium1 = new THREE.Mesh(podiumGeo1, stoneMat);
+  podium1.position.y = 1.5;
+  podium1.receiveShadow = true;
+  shrineGroup.add(podium1);
+
+  const podiumGeo2 = new THREE.CylinderGeometry(76, 84, 3, 20);
+  const podium2 = new THREE.Mesh(podiumGeo2, stoneMat);
+  podium2.position.y = 4.5;
+  podium2.receiveShadow = true;
+  shrineGroup.add(podium2);
+
   // 1. Central Raised Altar Dais
   const altarGeo = new THREE.CylinderGeometry(28, 34, 6, 16);
   const altar = new THREE.Mesh(altarGeo, stoneMat);
-  altar.position.y = 3;
+  altar.position.y = 9;
   altar.receiveShadow = true;
   altar.castShadow = true;
   shrineGroup.add(altar);
@@ -45,7 +58,7 @@ function createAncientShrineMesh(): THREE.Group {
     pillarGeo.rotateY((i * 17) % Math.PI);
 
     const pillar = new THREE.Mesh(pillarGeo, stoneMat);
-    pillar.position.set(sx, pillarHeight / 2, sz);
+    pillar.position.set(sx, 6 + pillarHeight / 2, sz);
     pillar.castShadow = true;
     pillar.receiveShadow = true;
     shrineGroup.add(pillar);
@@ -62,7 +75,7 @@ function createAncientShrineMesh(): THREE.Group {
 
       const lintelGeo = new THREE.BoxGeometry(lintelLen, 6, 9);
       const lintel = new THREE.Mesh(lintelGeo, mossMat);
-      lintel.position.set(midX, pillarHeight + 3, midZ);
+      lintel.position.set(midX, 6 + pillarHeight + 3, midZ);
       lintel.rotation.y = -Math.atan2(nz - sz, nx - sx);
       lintel.castShadow = true;
       shrineGroup.add(lintel);
@@ -82,14 +95,14 @@ function createAncientShrineMesh(): THREE.Group {
 
   const crystal = new THREE.Mesh(crystalGeo, crystalMat);
   crystal.name = 'shrineCrystal';
-  crystal.position.set(0, 22, 0);
+  crystal.position.set(0, 28, 0);
   crystal.castShadow = true;
   shrineGroup.add(crystal);
 
   // Soft mystical PointLight
   const glowLight = new THREE.PointLight(0x2dd4bf, 1.8, 140);
   glowLight.name = 'shrineLight';
-  glowLight.position.set(0, 22, 0);
+  glowLight.position.set(0, 28, 0);
   shrineGroup.add(glowLight);
 
   return shrineGroup;
@@ -112,11 +125,12 @@ export function updateShrine3D(sceneManager: SceneManager, time: number): void {
   if (crystal) {
     crystal.rotation.y = time * 0.8;
     crystal.rotation.x = Math.sin(time * 0.6) * 0.2;
-    crystal.position.y = 22 + Math.sin(time * 1.8) * 3.0; // gentle float bobbing
+    crystal.position.y = 28 + Math.sin(time * 1.8) * 3.0; // gentle float bobbing
   }
 
   const light = mesh.getObjectByName('shrineLight') as THREE.PointLight | undefined;
   if (light) {
+    light.position.y = 28 + Math.sin(time * 1.8) * 3.0;
     light.intensity = 1.4 + Math.sin(time * 3.0) * 0.5;
   }
 }

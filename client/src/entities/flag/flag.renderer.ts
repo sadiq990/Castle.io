@@ -134,14 +134,20 @@ export function updateFlag3D(
   // ── AT_HOME STATE ──────────────────────────────────────────
   if (flag.status === 'AT_HOME') {
     mesh.visible = true;
-    mesh.scale.set(1.1, 1.1, 1.1);
-    // Planted firmly on the central castle keep roof (roof is at y = 110)
-    const homeY = getTerrainHeight(flag.homePosition.x, flag.homePosition.y) + 110;
-    mesh.position.set(flag.homePosition.x, homeY, flag.homePosition.y);
+    mesh.scale.set(1.2, 1.2, 1.2);
+    // Dynamic castle anchor — GUARANTEES flag is always physically inside its team's castle
+    const castle = state.castles.find(c => c.team === flag.team)
+      ?? (flag.team === 'blue' ? { position: { x: 700, y: 700 } } : { position: { x: 3800, y: 3800 } });
+    const hx = castle.position.x;
+    const hz = castle.position.y;
+    // Positioned in the castle front courtyard plaza just in front of gate
+    const groundY = getTerrainHeight(hx, hz);
+    mesh.position.set(hx, groundY + 0.8, hz + 95);
     mesh.rotation.set(0, 0, 0);
 
     if (haloRing) {
-      (haloRing.material as THREE.MeshBasicMaterial).opacity = 0.0;
+      const ringMat = haloRing.material as THREE.MeshBasicMaterial;
+      ringMat.opacity = 0.25 + Math.sin(time * 3.0) * 0.12;
     }
   }
 
