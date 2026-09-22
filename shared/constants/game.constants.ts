@@ -5,7 +5,7 @@
 export const TICK_RATE = 20;
 
 /** Default map size in world units (square) */
-export const DEFAULT_MAP_SIZE = 3000;
+export const DEFAULT_MAP_SIZE = 4500;
 
 /** Default player movement speed (world units per second) */
 export const DEFAULT_PLAYER_SPEED = 200;

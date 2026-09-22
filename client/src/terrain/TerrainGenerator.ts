@@ -65,13 +65,13 @@ function warpedFbm(x: number, y: number): number {
 // ── UNIFIED HEIGHTMAP FUNCTION ─────────────────────────────────────────────
 export function getTerrainHeight(x: number, z: number): number {
 
-  // 1. Castle Flattening
-  const distToBlueCastle = Math.hypot(x - 500, z - 500);
-  const distToRedCastle  = Math.hypot(x - 2500, z - 2500);
+  // 1. Castle Flattening — matches map.config castles at 700,700 and MAP-700,MAP-700
+  const distToBlueCastle = Math.hypot(x - 700,  z - 700 );
+  const distToRedCastle  = Math.hypot(x - 3800, z - 3800);
   const castleDist = Math.min(distToBlueCastle, distToRedCastle);
 
-  if (castleDist < 140) return 0.0;
-  const castleBlend = Math.min(1.0, Math.max(0.0, (castleDist - 140) / 120));
+  if (castleDist < 180) return 0.0;
+  const castleBlend = Math.min(1.0, Math.max(0.0, (castleDist - 180) / 140));
 
   // 2. Lake Basin Depression
   for (const lake of MAP_CONFIG.waters) {

@@ -30,13 +30,13 @@ export class SceneManager {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
 
-    // ── Scene with gradient sky atmosphere ──────────────────────────────
+    // ── Scene with warm daytime atmosphere ──────────────────────────────
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x7ec8e3); // Bright daytime sky blue
-    this.scene.fog = new THREE.FogExp2(0x9dd6ee, 0.00022); // Exponential fog — distant mountains fade naturally
+    this.scene.background = new THREE.Color(0x87ceeb); // Warm sky blue
+    this.scene.fog = new THREE.FogExp2(0xaed6f1, 0.00016); // Lighter fog — see more of the bigger map
 
-    // ── Camera ────────────────────────────────────────────────────────
-    this.camera = new THREE.PerspectiveCamera(52, this.width / this.height, 2, 6000);
+    // ── Camera — bigger far plane for 4500 map ────────────────────────
+    this.camera = new THREE.PerspectiveCamera(52, this.width / this.height, 2, 8000);
     this.camera.position.set(0, 1000, 800);
     this.camera.lookAt(0, 0, 0);
 

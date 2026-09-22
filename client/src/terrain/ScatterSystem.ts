@@ -14,8 +14,8 @@ function isInsideAnyLake(x: number, z: number, buffer = 20): boolean {
 }
 
 function isNearAnyCastle(x: number, z: number, buffer = 140): boolean {
-  if (Math.hypot(x - 500,  z - 500 ) < buffer) return true;
-  if (Math.hypot(x - 2500, z - 2500) < buffer) return true;
+  if (Math.hypot(x - 700,  z - 700 ) < buffer) return true;
+  if (Math.hypot(x - 3800, z - 3800) < buffer) return true;
   return false;
 }
 
@@ -32,119 +32,255 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   const tmpColor = new THREE.Color();
 
   // ────────────────────────────────────────────────────────────────────────
-  // A. TALL PINE — single cone geometry (stable, no UV issues)
-  //    3000 instances on mid-high terrain
+  // A. LUSH OAK — large fluffy round canopy, 3000 instances
+  //    The dominant tree. Big, round, beautiful. Fills valleys and hillsides.
   // ────────────────────────────────────────────────────────────────────────
-  const PINE_COUNT  = 3000;
-  const pineGeo     = new THREE.ConeGeometry(18, 52, 7); // 7-sided cone, classic pine
-  pineGeo.translate(0, 26, 0); // Base at Y=0
-  const pineMat     = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.02, flatShading: true });
-  const pineInstanced = new THREE.InstancedMesh(pineGeo, pineMat, PINE_COUNT);
-  pineInstanced.castShadow    = true;
-  pineInstanced.receiveShadow = true;
+  const OAK_MAIN_COUNT = 3000;
+  const oakMainGeo     = new THREE.SphereGeometry(20, 8, 6); // Round fluffy canopy
+  oakMainGeo.scale(1.0, 0.85, 1.0);   // Slightly squashed = more natural
+  oakMainGeo.translate(0, 40, 0);      // Sits on trunk
+  const oakMainMat     = new THREE.MeshStandardMaterial({ roughness: 0.88, metalness: 0.0, flatShading: true });
+  const oakMainInstanced = new THREE.InstancedMesh(oakMainGeo, oakMainMat, OAK_MAIN_COUNT);
+  oakMainInstanced.castShadow    = true;
+  oakMainInstanced.receiveShadow = true;
 
-  const pineColors = [
-    new THREE.Color(0x14532d),
-    new THREE.Color(0x1a6b38),
-    new THREE.Color(0x22863a),
-    new THREE.Color(0x0f4c25),
-    new THREE.Color(0x166534),
+  const lushOakColors = [
+    new THREE.Color(0x2e7d32), // Rich deep green
+    new THREE.Color(0x388e3c), // Vibrant forest
+    new THREE.Color(0x43a047), // Summer leaf
+    new THREE.Color(0x1b5e20), // Dark canopy
+    new THREE.Color(0x4caf50), // Bright mid-green
+    new THREE.Color(0x558b2f), // Mossy green
+    new THREE.Color(0x33691e), // Deep forest shadow
   ];
 
-  let pineIdx = 0;
-  const pineStep = Math.sqrt((mapSize * mapSize) / PINE_COUNT);
+  let oakMainIdx = 0;
+  const oakMainStep = Math.sqrt((mapSize * mapSize) / OAK_MAIN_COUNT);
 
-  for (let gx = 80; gx < mapSize - 80 && pineIdx < PINE_COUNT; gx += pineStep) {
-    for (let gz = 80; gz < mapSize - 80 && pineIdx < PINE_COUNT; gz += pineStep) {
-      const x = jitter(gx, 12.9898, 78.233, pineStep);
-      const z = jitter(gz, 39.346,  11.135, pineStep);
+  for (let gx = 80; gx < mapSize - 80 && oakMainIdx < OAK_MAIN_COUNT; gx += oakMainStep) {
+    for (let gz = 80; gz < mapSize - 80 && oakMainIdx < OAK_MAIN_COUNT; gz += oakMainStep) {
+      const x = jitter(gx, 12.9898, 78.233, oakMainStep);
+      const z = jitter(gz, 39.346,  11.135, oakMainStep);
 
-      if (isInsideAnyLake(x, z, 40))  continue;
-      if (isNearAnyCastle(x, z, 145)) continue;
-      if (isNearPath(x, z, 20))       continue;
-      if (isNearPath(x, z, 36) && Math.random() > 0.3) continue;
+      if (isInsideAnyLake(x, z, 45))  continue;
+      if (isNearAnyCastle(x, z, 180)) continue;
+      if (isNearPath(x, z, 22))       continue;
+      if (isNearPath(x, z, 38) && Math.random() > 0.35) continue;
 
       const h     = getTerrainHeight(x, z);
       const slope = getTerrainSlope(x, z);
 
-      if (h > 52 || h < 0.5) continue;
-      if (slope > 0.58)       continue;
-      if (Math.random() > 0.72) continue;
+      if (h > 38 || h < 0.5) continue; // Oaks don't grow on cliffs or water
+      if (slope > 0.50)       continue;
+      if (Math.random() > 0.70) continue; // Natural density variation
 
       dummy.position.set(x, h, z);
       dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-      const scale = 0.65 + Math.random() * 0.55;
-      const heightScale = 1.0 + Math.min(0.5, h / 70);
-      dummy.scale.set(scale, scale * heightScale, scale);
+      // Slight size variation for natural look
+      const sw = 0.70 + Math.random() * 0.60;
+      const sh = 0.75 + Math.random() * 0.55;
+      dummy.scale.set(sw, sh, sw);
       dummy.updateMatrix();
-      pineInstanced.setMatrixAt(pineIdx, dummy.matrix);
+      oakMainInstanced.setMatrixAt(oakMainIdx, dummy.matrix);
 
-      tmpColor.copy(pineColors[Math.floor(Math.random() * pineColors.length)]!);
-      pineInstanced.setColorAt(pineIdx, tmpColor);
-      pineIdx++;
+      tmpColor.copy(lushOakColors[Math.floor(Math.random() * lushOakColors.length)]!);
+      oakMainInstanced.setColorAt(oakMainIdx, tmpColor);
+      oakMainIdx++;
     }
   }
-  pineInstanced.count = pineIdx;
-  pineInstanced.instanceMatrix.needsUpdate = true;
-  if (pineInstanced.instanceColor) pineInstanced.instanceColor.needsUpdate = true;
-  scatterGroup.add(pineInstanced);
+  oakMainInstanced.count = oakMainIdx;
+  oakMainInstanced.instanceMatrix.needsUpdate = true;
+  if (oakMainInstanced.instanceColor) oakMainInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(oakMainInstanced);
+
 
   // ────────────────────────────────────────────────────────────────────────
   // B. BROAD OAK — dodecahedron canopy, 1400 instances
   //    Prefers flat valleys and low hills
   // ────────────────────────────────────────────────────────────────────────
-  const OAK_COUNT  = 1400;
-  const oakGeo     = new THREE.DodecahedronGeometry(18, 1);
-  oakGeo.translate(0, 36, 0); // Canopy floats above ground
-  const oakMat     = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0.01, flatShading: true });
-  const oakInstanced = new THREE.InstancedMesh(oakGeo, oakMat, OAK_COUNT);
-  oakInstanced.castShadow    = true;
-  oakInstanced.receiveShadow = true;
+  // B. AUTUMN MAPLE — round canopy with rich autumn colors, 1200 instances
+  //    Mixed golden/red/amber — gorgeous colour contrast in the forest
+  // ────────────────────────────────────────────────────────────────────────
+  const MAPLE_COUNT = 1200;
+  const mapleGeo    = new THREE.DodecahedronGeometry(17, 1);
+  mapleGeo.scale(1.05, 0.90, 1.05);
+  mapleGeo.translate(0, 38, 0);
+  const mapleMat    = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.0, flatShading: true });
+  const mapleInstanced = new THREE.InstancedMesh(mapleGeo, mapleMat, MAPLE_COUNT);
+  mapleInstanced.castShadow    = true;
+  mapleInstanced.receiveShadow = true;
 
-  const oakColors = [
-    new THREE.Color(0x2e7d32), // Deep forest
-    new THREE.Color(0x388e3c), // Summer green
-    new THREE.Color(0x43a047), // Bright leaf
-    new THREE.Color(0xd97706), // Autumn amber
-    new THREE.Color(0xf59e0b), // Golden autumn
-    new THREE.Color(0x7b4f00), // Brown autumn
+  const mapleColors = [
+    new THREE.Color(0xd97706), // Warm amber
+    new THREE.Color(0xf59e0b), // Golden yellow
+    new THREE.Color(0xef4444), // Autumn red
+    new THREE.Color(0xdc2626), // Deep red
+    new THREE.Color(0xfbbf24), // Bright gold
+    new THREE.Color(0xb45309), // Burnt orange
+    new THREE.Color(0xc2410c), // Deep orange
   ];
 
-  let oakIdx = 0;
-  const oakStep = Math.sqrt((mapSize * mapSize) / OAK_COUNT);
+  let mapleIdx = 0;
+  const mapleStep = Math.sqrt((mapSize * mapSize) / MAPLE_COUNT);
 
-  for (let gx = 100; gx < mapSize - 100 && oakIdx < OAK_COUNT; gx += oakStep) {
-    for (let gz = 100; gz < mapSize - 100 && oakIdx < OAK_COUNT; gz += oakStep) {
-      const x = jitter(gx, 45.18, 23.67, oakStep);
-      const z = jitter(gz, 78.34, 91.12, oakStep);
+  for (let gx = 100; gx < mapSize - 100 && mapleIdx < MAPLE_COUNT; gx += mapleStep) {
+    for (let gz = 100; gz < mapSize - 100 && mapleIdx < MAPLE_COUNT; gz += mapleStep) {
+      const x = jitter(gx, 45.18, 23.67, mapleStep);
+      const z = jitter(gz, 78.34, 91.12, mapleStep);
 
       if (isInsideAnyLake(x, z, 50))  continue;
-      if (isNearAnyCastle(x, z, 155)) continue;
+      if (isNearAnyCastle(x, z, 180)) continue;
       if (isNearPath(x, z, 24))       continue;
 
       const h     = getTerrainHeight(x, z);
       const slope = getTerrainSlope(x, z);
 
-      if (h > 24 || h < 0.8) continue;
-      if (slope > 0.40)       continue;
-      if (Math.random() > 0.65) continue;
+      if (h > 22 || h < 0.6) continue;
+      if (slope > 0.38)       continue;
+      if (Math.random() > 0.58) continue;
 
       dummy.position.set(x, h, z);
       dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-      const scale = 0.75 + Math.random() * 0.50;
-      dummy.scale.set(scale, scale * 0.88, scale);
+      const sw = 0.80 + Math.random() * 0.52;
+      dummy.scale.set(sw, sw * 0.88, sw);
       dummy.updateMatrix();
-      oakInstanced.setMatrixAt(oakIdx, dummy.matrix);
+      mapleInstanced.setMatrixAt(mapleIdx, dummy.matrix);
 
-      tmpColor.copy(oakColors[Math.floor(Math.random() * oakColors.length)]!);
-      oakInstanced.setColorAt(oakIdx, tmpColor);
-      oakIdx++;
+      tmpColor.copy(mapleColors[Math.floor(Math.random() * mapleColors.length)]!);
+      mapleInstanced.setColorAt(mapleIdx, tmpColor);
+      mapleIdx++;
     }
   }
-  oakInstanced.count = oakIdx;
-  oakInstanced.instanceMatrix.needsUpdate = true;
-  if (oakInstanced.instanceColor) oakInstanced.instanceColor.needsUpdate = true;
-  scatterGroup.add(oakInstanced);
+  mapleInstanced.count = mapleIdx;
+  mapleInstanced.instanceMatrix.needsUpdate = true;
+  if (mapleInstanced.instanceColor) mapleInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(mapleInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // B2. TALL POPLAR — slim elongated sphere, 800 instances
+  //     Tall narrow silhouette — lines roadsides and meadow edges beautifully
+  // ────────────────────────────────────────────────────────────────────────
+  const POPLAR_COUNT = 800;
+  const poplarGeo    = new THREE.SphereGeometry(10, 7, 6);
+  poplarGeo.scale(1.0, 2.6, 1.0);  // Very tall narrow shape
+  poplarGeo.translate(0, 52, 0);
+  const poplarMat    = new THREE.MeshStandardMaterial({ roughness: 0.84, metalness: 0.0, flatShading: true });
+  const poplarInstanced = new THREE.InstancedMesh(poplarGeo, poplarMat, POPLAR_COUNT);
+  poplarInstanced.castShadow    = true;
+  poplarInstanced.receiveShadow = true;
+
+  const poplarColors = [
+    new THREE.Color(0x15803d), // Deep poplar green
+    new THREE.Color(0x166534), // Very dark green
+    new THREE.Color(0x14532d), // Forest black-green
+    new THREE.Color(0x16a34a), // Medium green
+    new THREE.Color(0xbef264), // Light lime (spring poplar)
+  ];
+
+  let poplarIdx = 0;
+  const poplarStep = Math.sqrt((mapSize * mapSize) / POPLAR_COUNT);
+
+  for (let gx = 80; gx < mapSize - 80 && poplarIdx < POPLAR_COUNT; gx += poplarStep) {
+    for (let gz = 80; gz < mapSize - 80 && poplarIdx < POPLAR_COUNT; gz += poplarStep) {
+      const x = jitter(gx, 67.32, 14.78, poplarStep);
+      const z = jitter(gz, 44.56, 88.91, poplarStep);
+
+      if (isInsideAnyLake(x, z, 40))  continue;
+      if (isNearAnyCastle(x, z, 170)) continue;
+      if (isNearPath(x, z, 18))       continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h > 28 || h < 0.5) continue;
+      if (slope > 0.30)       continue;
+      if (Math.random() > 0.45) continue; // Sparser than oak
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      const sw = 0.60 + Math.random() * 0.45;
+      const sh = 0.80 + Math.random() * 0.40;
+      dummy.scale.set(sw, sh, sw);
+      dummy.updateMatrix();
+      poplarInstanced.setMatrixAt(poplarIdx, dummy.matrix);
+
+      tmpColor.copy(poplarColors[Math.floor(Math.random() * poplarColors.length)]!);
+      poplarInstanced.setColorAt(poplarIdx, tmpColor);
+      poplarIdx++;
+    }
+  }
+  poplarInstanced.count = poplarIdx;
+  poplarInstanced.instanceMatrix.needsUpdate = true;
+  if (poplarInstanced.instanceColor) poplarInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(poplarInstanced);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // B3. WEEPING WILLOW — wide flat-oval canopy, 400 instances
+  //     Near lake shores — drooping wide round silhouette, zümrüd mint green
+  // ────────────────────────────────────────────────────────────────────────
+  const WILLOW_COUNT = 400;
+  const willowGeo    = new THREE.SphereGeometry(22, 8, 5);
+  willowGeo.scale(1.4, 0.55, 1.4); // Very wide, flat, drooping canopy
+  willowGeo.translate(0, 28, 0);
+  const willowMat    = new THREE.MeshStandardMaterial({ roughness: 0.80, metalness: 0.0, flatShading: true });
+  const willowInstanced = new THREE.InstancedMesh(willowGeo, willowMat, WILLOW_COUNT);
+  willowInstanced.castShadow    = true;
+  willowInstanced.receiveShadow = true;
+
+  const willowColors = [
+    new THREE.Color(0x34d399), // Mint emerald
+    new THREE.Color(0x10b981), // Bright emerald
+    new THREE.Color(0x059669), // Deep emerald
+    new THREE.Color(0x6ee7b7), // Pale mint
+    new THREE.Color(0x4ade80), // Lime green
+  ];
+
+  let willowIdx = 0;
+  const willowStep = Math.sqrt((mapSize * mapSize) / WILLOW_COUNT);
+
+  for (let gx = 80; gx < mapSize - 80 && willowIdx < WILLOW_COUNT; gx += willowStep) {
+    for (let gz = 80; gz < mapSize - 80 && willowIdx < WILLOW_COUNT; gz += willowStep) {
+      const x = jitter(gx, 33.12, 91.45, willowStep);
+      const z = jitter(gz, 77.89, 22.34, willowStep);
+
+      // Willows specifically prefer to be NEAR lakes
+      let nearLake = false;
+      for (const lake of MAP_CONFIG.waters) {
+        const dist = Math.hypot(x - lake.position.x, z - lake.position.y);
+        if (dist < (lake.radius ?? 250) + 120 && dist > (lake.radius ?? 250) + 30) {
+          nearLake = true;
+          break;
+        }
+      }
+      if (!nearLake && Math.random() > 0.25) continue; // 75% only near lakes
+
+      if (isInsideAnyLake(x, z, 28))  continue;
+      if (isNearAnyCastle(x, z, 180)) continue;
+      if (isNearPath(x, z, 20))       continue;
+
+      const h     = getTerrainHeight(x, z);
+      const slope = getTerrainSlope(x, z);
+
+      if (h > 12 || h < 0.3) continue;
+      if (slope > 0.20)       continue;
+
+      dummy.position.set(x, h, z);
+      dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      const sw = 0.75 + Math.random() * 0.55;
+      dummy.scale.set(sw, sw * 0.9, sw);
+      dummy.updateMatrix();
+      willowInstanced.setMatrixAt(willowIdx, dummy.matrix);
+
+      tmpColor.copy(willowColors[Math.floor(Math.random() * willowColors.length)]!);
+      willowInstanced.setColorAt(willowIdx, tmpColor);
+      willowIdx++;
+    }
+  }
+  willowInstanced.count = willowIdx;
+  willowInstanced.instanceMatrix.needsUpdate = true;
+  if (willowInstanced.instanceColor) willowInstanced.instanceColor.needsUpdate = true;
+  scatterGroup.add(willowInstanced);
+
 
   // ────────────────────────────────────────────────────────────────────────
   // C. DEAD / BARE TREE — thin cylinder trunk, 450 instances
