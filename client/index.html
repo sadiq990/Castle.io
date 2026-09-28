@@ -231,11 +231,17 @@
         autofocus
       />
       <button id="play-btn">OYNA</button>
+      <button id="demo-mode-btn" style="width: 280px; margin-top: 10px; padding: 12px; font-size: 14px; font-weight: 700; border: none; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; cursor: pointer; box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45); transition: transform 0.1s, box-shadow 0.2s;">🎬 RTS Demo (100 Vahid + Binalar)</button>
       <p class="hint">WASD və ya ox düymələri ilə hərəkət et</p>
     </div>
 
     <!-- Connection status (bottom-left) -->
     <div id="connection-status" class="disconnected">Offline</div>
+
+    <!-- In-Game RTS Demo toggle button (top-left) -->
+    <button id="in-game-demo-btn" style="position: fixed; top: 12px; left: 12px; z-index: 99; padding: 7px 12px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(124, 58, 237, 0.85); border: 1.5px solid rgba(255,255,255,0.25); border-radius: 8px; cursor: pointer; backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+      🎬 RTS Demo Səhnəsi (100 Vahid)
+    </button>
 
     <!-- Player list panel (top-right, agar.io style) -->
     <div id="player-list">

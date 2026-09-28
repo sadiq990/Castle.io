@@ -1,5 +1,5 @@
 import type { Camera } from '../../rendering/Camera.js';
-import type { GoldState } from 'shared/types/entities.js';
+import type { GoldState } from './gold.model.js';
 import { resolveAsset, preloadAsset } from '../../assets/AssetLoader.js';
 
 void preloadAsset('map', 'goldmine2');

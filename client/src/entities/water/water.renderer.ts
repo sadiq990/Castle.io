@@ -133,7 +133,7 @@ function createOrganicLakeShape(radius: number, scaleMultiplier = 1.0): THREE.Bu
     radius * scaleMultiplier,
     2, segments, 1
   );
-  const pos = geo.attributes.position;
+  const pos = geo.attributes['position']!;
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);

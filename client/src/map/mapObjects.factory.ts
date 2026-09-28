@@ -22,6 +22,6 @@ export function createMapObjects(): MapObjects {
     mountains: MAP_CONFIG.mountains.map(m => ({ id: m.id, position: { ...m.position } })),
     waters: MAP_CONFIG.waters.map(w => ({ id: w.id, position: { ...w.position }, radius: (w as any).radius })),
     stones: MAP_CONFIG.stones.map(s => ({ id: s.id, position: { ...s.position } })),
-    castles: MAP_CONFIG.castles.map(c => ({ id: c.id, position: { ...c.position }, ownerId: c.ownerId })),
+    castles: MAP_CONFIG.castles.map(c => ({ id: c.id, position: { ...c.position }, team: c.team, ownerId: c.ownerId })),
   };
 }

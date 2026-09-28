@@ -1,6 +1,9 @@
-import type { GoldState } from 'shared/types/entities.js';
+// GoldState is not in shared types — define locally as a simple positional entity.
 
-export type { GoldState };
+export interface GoldState {
+  id: string;
+  position: { x: number; y: number };
+}
 
 export function createGold(id: string, x: number, y: number): GoldState {
   return { id, position: { x, y } };

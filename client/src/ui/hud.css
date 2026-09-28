@@ -1,0 +1,378 @@
+:root {
+  --blue: #2F7BFF;
+  --red: #FF3B3B;
+  --ui-bg: rgba(15, 27, 45, 0.85);
+  --radius: 12px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+}
+
+.hud-panel {
+  background: var(--ui-bg);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  padding: 10px 14px;
+  color: white;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+#hud-top-center {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-team-name {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.7;
+}
+
+.score-value {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.score-separator {
+  font-size: 13px;
+  opacity: 0.5;
+  margin: 0 8px;
+}
+
+.target-display {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.game-timer {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: 14px;
+}
+
+.flag-status {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.flag-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+#hud-top-left {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+}
+
+.resource-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.resource-icon {
+  font-size: 16px;
+}
+
+.resource-value {
+  min-width: 30px;
+  text-align: right;
+}
+
+.population-row {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+#hud-bottom-center {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 320px;
+  max-width: 600px;
+  z-index: 200;
+}
+
+.selection-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.selection-hp-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.selection-hp-fill {
+  height: 100%;
+  background: #3DDC84;
+  transition: width 0.3s;
+  border-radius: 3px;
+}
+
+.production-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prod-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  color: white;
+  font-size: 11px;
+  gap: 2px;
+}
+
+.prod-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.prod-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.prod-btn .shortcut {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 8px;
+  opacity: 0.5;
+}
+
+.prod-btn .cost {
+  font-size: 9px;
+  color: #F5C542;
+}
+
+.production-queue {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.queue-item {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  position: relative;
+}
+
+.queue-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--blue);
+  border-radius: 0 0 4px 4px;
+}
+
+#hud-bottom-left {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  width: 300px;
+  max-height: 150px;
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.event-entry {
+  padding: 5px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  animation: fadeInSlide 0.3s ease;
+  background: var(--ui-bg);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.event-entry.important {
+  border-left: 3px solid #FF5A4F;
+}
+
+.event-entry.success {
+  border-left: 3px solid #3DDC84;
+}
+
+.event-entry.info {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeInSlide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+#hud-warning-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+}
+
+.warning-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(255, 90, 79, 0.9);
+  color: white;
+  animation: pulse 0.5s infinite alternate;
+}
+
+.screen-edge-red-glow {
+  box-shadow: inset 0 0 80px rgba(255, 59, 59, 0.5);
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  transition: opacity 0.3s ease;
+}
+
+.screen-edge-blue-glow {
+  box-shadow: inset 0 0 80px rgba(47, 123, 255, 0.5);
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  transition: opacity 0.3s ease;
+}
+
+#minimap-container {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 200;
+  width: 170px;
+  height: 170px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+#build-menu {
+  position: fixed;
+  bottom: 80px;
+  right: 12px;
+  z-index: 200;
+}
+
+.build-category {
+  margin-bottom: 12px;
+}
+
+.build-category-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.5;
+  margin-bottom: 6px;
+  color: white;
+}
+
+.build-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+#drag-select-box {
+  position: fixed;
+  border: 1px solid rgba(100, 200, 100, 0.8);
+  background: rgba(50, 150, 50, 0.15);
+  pointer-events: none;
+  z-index: 300;
+}
+
+@keyframes pulse {
+  from { opacity: 0.8; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

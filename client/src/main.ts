@@ -15,6 +15,7 @@ import { initResourceUI, isTowerBuildMode } from './ui/resourceUI.js';
 import { initSlaves } from './slaves/SlaveManager.js';
 import { attemptBuildFenceAt, attemptAttackFence, setSceneManagerForFences, getActiveBuildType, updateGhostPreview } from './fences/FenceManager.js';
 import { attemptBuildTower } from './towers/TowerManager.js';
+import { initDemoScene } from './demo/demo.js';
 
 // ─── DOM REFS ────────────────────────────────────────────────
 const loginScreen    = document.getElementById('login-screen')!;
@@ -139,7 +140,7 @@ function updatePlayerList(): void {
 
 // ─── OFFLINE LOCAL PLAYER ────────────────────────────────────
 const LOCAL_ID = 'local';
-const localPlayer = createLocalPlayer(LOCAL_ID, { x: 400, y: 400 }, '#2E6FE0');
+const localPlayer = createLocalPlayer(LOCAL_ID, { x: 680, y: 680 }, '#2E6FE0');
 localPlayer.name = 'Siz';
 state.players[LOCAL_ID] = localPlayer;
 state.localPlayerId = LOCAL_ID;
@@ -241,4 +242,51 @@ usernameInput.addEventListener('keydown', (e) => {
 function setStatus(cls: 'connected' | 'disconnected', text: string): void {
   statusEl.textContent = text;
   statusEl.className = cls;
+}
+
+// ─── RTS DEMO SHOWCASE MODE ──────────────────────────────────
+let demoUpdateFn: ((timestamp: number) => void) | null = null;
+
+function startDemoMode(): void {
+  loginScreen.style.display = 'none';
+  const playerList = document.getElementById('player-list');
+  if (playerList) playerList.style.display = 'none';
+  const buildPanel = document.getElementById('build-panel');
+  if (buildPanel) buildPanel.style.display = 'none';
+  const resHud = document.getElementById('resource-hud');
+  if (resHud) resHud.style.display = 'none';
+
+  loop.stop();
+
+  // Clear scene and initialize RTS Demo
+  sceneManager.scene.clear();
+  demoUpdateFn = initDemoScene(sceneManager.scene, sceneManager.camera, sceneManager.renderer);
+
+  const inGameBtn = document.getElementById('in-game-demo-btn');
+  if (inGameBtn) {
+    inGameBtn.textContent = '🔄 Normal Oyuna Qayıt';
+    inGameBtn.onclick = () => window.location.href = window.location.pathname;
+  }
+
+  function demoLoop(timestamp: number) {
+    if (demoUpdateFn) {
+      demoUpdateFn(timestamp);
+      requestAnimationFrame(demoLoop);
+    }
+  }
+  requestAnimationFrame(demoLoop);
+}
+
+const demoModeBtn = document.getElementById('demo-mode-btn');
+if (demoModeBtn) {
+  demoModeBtn.addEventListener('click', () => startDemoMode());
+}
+
+const inGameDemoBtn = document.getElementById('in-game-demo-btn');
+if (inGameDemoBtn) {
+  inGameDemoBtn.addEventListener('click', () => startDemoMode());
+}
+
+if (window.location.search.includes('demo=1')) {
+  startDemoMode();
 }

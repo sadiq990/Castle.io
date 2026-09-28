@@ -133,7 +133,7 @@ export function getTerrainSlope(x: number, z: number): number {
 }
 
 // ── 5-ZONE ELEVATION COLOR FUNCTION ──────────────────────────────────────
-function getElevationColor(h: number, slope: number): THREE.Color {
+export function getElevationColor(h: number, slope: number): THREE.Color {
   // Zone boundaries
   const SHORE_HIGH   =  1.5;   // Sandy beach/shore
   const GRASS_HIGH   = 18.0;   // Lush green meadow
@@ -202,7 +202,7 @@ export function createTerrainMesh(mapSize: number): THREE.Mesh {
   geo.rotateX(-Math.PI / 2); // Lay horizontal
   geo.translate(mapSize / 2, 0, mapSize / 2); // Align origin to top-left
 
-  const pos    = geo.attributes.position;
+  const pos    = geo.attributes['position']!;
   const count  = pos.count;
   const colors = new Float32Array(count * 3);
 

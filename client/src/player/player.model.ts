@@ -18,6 +18,9 @@ export function createLocalPlayer(id: string, position: Vector2, color: string, 
     speedMultiplier: 1.0,
     facing: 0,
     speed: DEFAULT_PLAYER_SPEED,
+    hp: 100,
+    maxHp: 100,
+    lives: 3,
   };
 }
 

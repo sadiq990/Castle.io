@@ -21,9 +21,47 @@ import { initResourceZones3D } from '../resources/ResourceManager.js';
 import { updateSlaves3D } from '../slaves/SlaveManager.js';
 import { updateFences3D, syncWorldFences } from '../fences/FenceManager.js';
 import { syncTowersAndArrows3D } from '../towers/TowerManager.js';
+import { createBuilding, type BuildingType } from '../models/buildings.js';
+import { getTerrainHeight } from '../terrain/TerrainGenerator.js';
 
 let terrainInitialized = false;
 let lastRenderTime = 0;
+
+function initBaseBuildings(sceneManager: SceneManager): void {
+  const buildingDefs: Array<{
+    type: BuildingType;
+    team: 'blue' | 'red';
+    x: number;
+    z: number;
+    scale: number;
+  }> = [
+    // Blue Castle (700, 700) village
+    { type: 'barracks',   team: 'blue', x: 860,  z: 620, scale: 8 },  // Kazarma
+    { type: 'stable',     team: 'blue', x: 600,  z: 850, scale: 7 },  // Tövlə
+    { type: 'catapult',   team: 'blue', x: 860,  z: 780, scale: 8 },  // Mancınıq emalatxanası
+    { type: 'archery',    team: 'blue', x: 540,  z: 680, scale: 7 },  // Atıcılıq meydanı
+    { type: 'farm',       team: 'blue', x: 940,  z: 660, scale: 8 },  // Ev / Ferma
+    { type: 'storage',    team: 'blue', x: 680,  z: 920, scale: 7 },  // Anbar
+    { type: 'watchtower', team: 'blue', x: 880,  z: 880, scale: 7 },  // Qüllə
+
+    // Red Castle (3800, 3800) village
+    { type: 'barracks',   team: 'red',  x: 3640, z: 3980, scale: 8 }, // Kazarma
+    { type: 'stable',     team: 'red',  x: 3980, z: 3650, scale: 7 }, // Tövlə
+    { type: 'catapult',   team: 'red',  x: 3740, z: 3820, scale: 8 }, // Mancınıq emalatxanası
+    { type: 'archery',    team: 'red',  x: 4060, z: 3920, scale: 7 }, // Atıcılıq meydanı
+    { type: 'farm',       team: 'red',  x: 3660, z: 3680, scale: 8 }, // Ev / Ferma
+    { type: 'storage',    team: 'red',  x: 3920, z: 3680, scale: 7 }, // Anbar
+    { type: 'watchtower', team: 'red',  x: 3720, z: 3720, scale: 7 }, // Qüllə
+  ];
+
+  for (const def of buildingDefs) {
+    const building = createBuilding(def.type, def.team, 'ready');
+    const y = getTerrainHeight(def.x, def.z);
+    building.position.set(def.x, y, def.z);
+    building.scale.setScalar(def.scale);
+    sceneManager.scene.add(building);
+  }
+}
 
 function ensureWorldEnvironment(sceneManager: SceneManager, mapSize: number): void {
   if (terrainInitialized) return;
@@ -49,6 +87,9 @@ function ensureWorldEnvironment(sceneManager: SceneManager, mapSize: number): vo
 
   // 6. Forest and Mine Resource Zones
   initResourceZones3D(sceneManager);
+
+  // 7. Base Village Buildings (Kazarma, Tövlə, Mancınıq, Atıcılıq, Ferma, Anbar, Qüllə)
+  initBaseBuildings(sceneManager);
 }
 
 export function renderFrame(

@@ -74,7 +74,7 @@ export function isNearPath(x: number, z: number, threshold = 26): boolean {
   }
 
   for (let i = 0; i < sampledCurvePoints.length; i++) {
-    const p = sampledCurvePoints[i];
+    const p = sampledCurvePoints[i]!;
     const dx = x - p.x;
     const dz = z - p.z;
     if (Math.hypot(dx, dz) < threshold) {

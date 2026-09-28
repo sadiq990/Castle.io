@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { SceneManager } from '../../core/SceneManager.js';
 import type { GameClientState } from '../../state/gameClientState.js';
 
@@ -63,7 +63,7 @@ export function updateFlagVFX(
   // ── 2. UPDATE & CLEANUP PARTICLES ─────────────────────────
   const dt = 0.016; // approximate frame dt
   for (let i = activeParticles.length - 1; i >= 0; i--) {
-    const p = activeParticles[i];
+    const p = activeParticles[i]!;
     p.life += dt;
 
     // Movement & fading
