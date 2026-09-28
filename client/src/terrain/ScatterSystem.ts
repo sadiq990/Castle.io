@@ -23,8 +23,31 @@ function isNearShrine(x: number, z: number, buffer = 120): boolean {
   return Math.hypot(x - 2250, z - 2250) < buffer;
 }
 
-function jitter(v: number, seed1: number, seed2: number, step: number): number {
-  return v + (Math.sin(v * seed1 + v * seed2) * 0.5) * (step * 0.82);
+// Fast deterministic 2D pseudo-random hash in [0, 1) based on cell coordinates and seed
+function hash2D(x: number, z: number, seed: number): number {
+  const n = Math.sin(x * 12.9898 + z * 78.233 + seed * 37.719) * 43758.5453123;
+  return n - Math.floor(n);
+}
+
+// 2D Organic Jitter & Continuous Domain Warp:
+// Completely eliminates straight lines, rows, and grid artifacts across all scatter objects.
+function getScatterPosition(gx: number, gz: number, seed: number, step: number): { x: number; z: number } {
+  // Independent pseudo-random 2D offsets based on BOTH gx and gz
+  const rx = hash2D(gx, gz, seed * 1.31 + 7.1);
+  const rz = hash2D(gx, gz, seed * 2.73 + 19.3);
+
+  // Broad 2D jitter (-0.42 * step to +0.42 * step) ensures points disperse in all directions
+  const offsetX = (rx - 0.5) * step * 0.84;
+  const offsetZ = (rz - 0.5) * step * 0.84;
+
+  // Gentle low-frequency continuous domain warp to naturally curve groves and glades
+  const warpX = Math.sin(gx * 0.0031 + gz * 0.0047 + seed) * (step * 0.38);
+  const warpZ = Math.cos(gx * 0.0053 - gz * 0.0033 + seed) * (step * 0.38);
+
+  return {
+    x: gx + offsetX + warpX,
+    z: gz + offsetZ + warpZ,
+  };
 }
 
 // Organic 2D forest density mask: creates natural groves & sunny meadows
@@ -134,12 +157,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let grandIdx = 0;
-  const grandStep = Math.sqrt((mapSize * mapSize) / GRAND_OAK_COUNT);
+  const grandStep = Math.sqrt((mapSize * mapSize) / (GRAND_OAK_COUNT * 1.8));
 
-  for (let gx = 100; gx < mapSize - 100 && grandIdx < GRAND_OAK_COUNT; gx += grandStep) {
-    for (let gz = 100; gz < mapSize - 100 && grandIdx < GRAND_OAK_COUNT; gz += grandStep) {
-      const x = jitter(gx, 12.98, 78.23, grandStep);
-      const z = jitter(gz, 39.34, 11.13, grandStep);
+  for (let gx = 80; gx < mapSize - 80 && grandIdx < GRAND_OAK_COUNT; gx += grandStep) {
+    for (let gz = 80; gz < mapSize - 80 && grandIdx < GRAND_OAK_COUNT; gz += grandStep) {
+      const pos = getScatterPosition(gx, gz, 12.98, grandStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 55))  continue;
       if (isNearAnyCastle(x, z, 180)) continue;
@@ -210,12 +236,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let poplarIdx = 0;
-  const poplarStep = Math.sqrt((mapSize * mapSize) / POPLAR_COUNT);
+  const poplarStep = Math.sqrt((mapSize * mapSize) / (POPLAR_COUNT * 2.5));
 
   for (let gx = 80; gx < mapSize - 80 && poplarIdx < POPLAR_COUNT; gx += poplarStep) {
     for (let gz = 80; gz < mapSize - 80 && poplarIdx < POPLAR_COUNT; gz += poplarStep) {
-      const x = jitter(gx, 67.32, 14.78, poplarStep);
-      const z = jitter(gz, 44.56, 88.91, poplarStep);
+      const pos = getScatterPosition(gx, gz, 67.32, poplarStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 42))  continue;
       if (isNearAnyCastle(x, z, 170)) continue;
@@ -287,12 +316,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let mapleIdx = 0;
-  const mapleStep = Math.sqrt((mapSize * mapSize) / MAPLE_COUNT);
+  const mapleStep = Math.sqrt((mapSize * mapSize) / (MAPLE_COUNT * 2.4));
 
-  for (let gx = 90; gx < mapSize - 90 && mapleIdx < MAPLE_COUNT; gx += mapleStep) {
-    for (let gz = 90; gz < mapSize - 90 && mapleIdx < MAPLE_COUNT; gz += mapleStep) {
-      const x = jitter(gx, 45.18, 23.67, mapleStep);
-      const z = jitter(gz, 78.34, 91.12, mapleStep);
+  for (let gx = 80; gx < mapSize - 80 && mapleIdx < MAPLE_COUNT; gx += mapleStep) {
+    for (let gz = 80; gz < mapSize - 80 && mapleIdx < MAPLE_COUNT; gz += mapleStep) {
+      const pos = getScatterPosition(gx, gz, 45.18, mapleStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 48))  continue;
       if (isNearAnyCastle(x, z, 175)) continue;
@@ -360,12 +392,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let saplingIdx = 0;
-  const saplingStep = Math.sqrt((mapSize * mapSize) / SAPLING_COUNT);
+  const saplingStep = Math.sqrt((mapSize * mapSize) / (SAPLING_COUNT * 2.6));
 
   for (let gx = 70; gx < mapSize - 70 && saplingIdx < SAPLING_COUNT; gx += saplingStep) {
     for (let gz = 70; gz < mapSize - 70 && saplingIdx < SAPLING_COUNT; gz += saplingStep) {
-      const x = jitter(gx, 51.23, 89.45, saplingStep);
-      const z = jitter(gz, 33.67, 12.89, saplingStep);
+      const pos = getScatterPosition(gx, gz, 51.23, saplingStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 35))  continue;
       if (isNearAnyCastle(x, z, 150)) continue;
@@ -435,12 +470,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let willowIdx = 0;
-  const willowStep = Math.sqrt((mapSize * mapSize) / WILLOW_COUNT);
+  const willowStep = Math.sqrt((mapSize * mapSize) / (WILLOW_COUNT * 4.0));
 
-  for (let gx = 80; gx < mapSize - 80 && willowIdx < WILLOW_COUNT; gx += willowStep) {
-    for (let gz = 80; gz < mapSize - 80 && willowIdx < WILLOW_COUNT; gz += willowStep) {
-      const x = jitter(gx, 33.12, 91.45, willowStep);
-      const z = jitter(gz, 77.89, 22.34, willowStep);
+  for (let gx = 60; gx < mapSize - 60 && willowIdx < WILLOW_COUNT; gx += willowStep) {
+    for (let gz = 60; gz < mapSize - 60 && willowIdx < WILLOW_COUNT; gz += willowStep) {
+      const pos = getScatterPosition(gx, gz, 33.12, willowStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       // Willows strictly stay near lake shores (distance 35 to 140 from lake edge)
       let nearLake = false;
@@ -508,12 +546,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let flowerIdx = 0;
-  const flowerStep = Math.sqrt((mapSize * mapSize) / FLOWER_COUNT);
+  const flowerStep = Math.sqrt((mapSize * mapSize) / (FLOWER_COUNT * 2.2));
 
   for (let gx = 60; gx < mapSize - 60 && flowerIdx < FLOWER_COUNT; gx += flowerStep) {
     for (let gz = 60; gz < mapSize - 60 && flowerIdx < FLOWER_COUNT; gz += flowerStep) {
-      const x = jitter(gx, 88.34, 45.12, flowerStep);
-      const z = jitter(gz, 23.67, 99.45, flowerStep);
+      const pos = getScatterPosition(gx, gz, 88.34, flowerStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 35))  continue;
       if (isNearAnyCastle(x, z, 140)) continue;
@@ -566,12 +607,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let grassIdx = 0;
-  const grassStep = Math.sqrt((mapSize * mapSize) / GRASS_COUNT);
+  const grassStep = Math.sqrt((mapSize * mapSize) / (GRASS_COUNT * 1.25));
 
-  for (let gx = 60; gx < mapSize - 60 && grassIdx < GRASS_COUNT; gx += grassStep) {
-    for (let gz = 60; gz < mapSize - 60 && grassIdx < GRASS_COUNT; gz += grassStep) {
-      const x = jitter(gx, 12.9898, 78.233, grassStep);
-      const z = jitter(gz, 39.346,  11.135, grassStep);
+  for (let gx = 50; gx < mapSize - 50 && grassIdx < GRASS_COUNT; gx += grassStep) {
+    for (let gz = 50; gz < mapSize - 50 && grassIdx < GRASS_COUNT; gz += grassStep) {
+      const pos = getScatterPosition(gx, gz, 12.9898, grassStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 25 || x > mapSize - 25 || z < 25 || z > mapSize - 25) continue;
 
       if (isInsideAnyLake(x, z, 28))  continue;
       if (isNearAnyCastle(x, z, 130)) continue;
@@ -623,12 +667,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let rockIdx = 0;
-  const rockStep = Math.sqrt((mapSize * mapSize) / ROCK_COUNT);
+  const rockStep = Math.sqrt((mapSize * mapSize) / (ROCK_COUNT * 1.5));
 
-  for (let rx = 80; rx < mapSize - 80 && rockIdx < ROCK_COUNT; rx += rockStep) {
-    for (let rz = 80; rz < mapSize - 80 && rockIdx < ROCK_COUNT; rz += rockStep) {
-      const x = jitter(rx, 93.98, 67.23, rockStep);
-      const z = jitter(rz, 23.34, 85.11, rockStep);
+  for (let rx = 70; rx < mapSize - 70 && rockIdx < ROCK_COUNT; rx += rockStep) {
+    for (let rz = 70; rz < mapSize - 70 && rockIdx < ROCK_COUNT; rz += rockStep) {
+      const pos = getScatterPosition(rx, rz, 93.98, rockStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 25 || x > mapSize - 25 || z < 25 || z > mapSize - 25) continue;
 
       if (isInsideAnyLake(x, z, 15))  continue;
       if (isNearAnyCastle(x, z, 130)) continue;
@@ -680,12 +727,15 @@ export function createScatterMeshes(mapSize: number): THREE.Group {
   ];
 
   let bushIdx = 0;
-  const bushStep = Math.sqrt((mapSize * mapSize) / BUSH_COUNT);
+  const bushStep = Math.sqrt((mapSize * mapSize) / (BUSH_COUNT * 1.5));
 
-  for (let bx = 100; bx < mapSize - 100 && bushIdx < BUSH_COUNT; bx += bushStep) {
-    for (let bz = 100; bz < mapSize - 100 && bushIdx < BUSH_COUNT; bz += bushStep) {
-      const x = jitter(bx, 45.18, 23.67, bushStep);
-      const z = jitter(bz, 78.34, 91.12, bushStep);
+  for (let bx = 80; bx < mapSize - 80 && bushIdx < BUSH_COUNT; bx += bushStep) {
+    for (let bz = 80; bz < mapSize - 80 && bushIdx < BUSH_COUNT; bz += bushStep) {
+      const pos = getScatterPosition(bx, bz, 45.18, bushStep);
+      const x = pos.x;
+      const z = pos.z;
+
+      if (x < 30 || x > mapSize - 30 || z < 30 || z > mapSize - 30) continue;
 
       if (isInsideAnyLake(x, z, 35))  continue;
       if (isNearAnyCastle(x, z, 140)) continue;

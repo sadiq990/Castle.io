@@ -28,7 +28,7 @@ services:
     networks:
       - io-game-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/socket.io/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- 'http://localhost:3000/socket.io/?EIO=4&transport=polling' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -42,6 +42,7 @@ services:
     restart: unless-stopped
     ports:
       - "3001:80"
+      - "8080:80"
     depends_on:
       io-game-server:
         condition: service_started
